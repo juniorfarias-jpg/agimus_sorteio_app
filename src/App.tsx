@@ -6,6 +6,7 @@ import { TicketLookup } from './components/TicketLookup.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { StageMode } from './components/StageMode.tsx';
 import { Participant, Prize, Raffle, Winner } from './types.ts';
+import { MobileJoinQRModal } from './components/MobileJoinQRModal.tsx';
 import { Settings } from 'lucide-react';
 
 const fallbackRaffle: Raffle = {
@@ -55,6 +56,7 @@ export default function App() {
   // URL Query parameter for ticket redirect
   const [urlTicket, setUrlTicket] = useState<string | null>(null);
   const [selectedLookupTicket, setSelectedLookupTicket] = useState<string>('');
+  const [isMobileQRModalOpen, setIsMobileQRModalOpen] = useState(false);
 
   // Toast indicator for shortcut
   const [shortcutToast, setShortcutToast] = useState<string | null>(null);
@@ -102,9 +104,17 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ticketParam = params.get('ticket');
+    const tabParam = params.get('tab');
+
     if (ticketParam) {
       setUrlTicket(ticketParam);
       setActiveTab('live');
+    } else if (tabParam === 'register') {
+      setActiveTab('register');
+    } else if (tabParam === 'lookup') {
+      setActiveTab('lookup');
+    } else if (tabParam === 'admin') {
+      setActiveTab('admin');
     }
   }, []);
 
@@ -239,6 +249,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         participantCount={participantCount}
         raffle={raffle}
+        onOpenMobileQR={() => setIsMobileQRModalOpen(true)}
       />
 
       {/* Main Content View */}
@@ -285,6 +296,13 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Mobile QR Modal */}
+      <MobileJoinQRModal
+        isOpen={isMobileQRModalOpen}
+        onClose={() => setIsMobileQRModalOpen(false)}
+        raffleTitle={raffle.title}
+      />
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">

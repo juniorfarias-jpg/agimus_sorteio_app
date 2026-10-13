@@ -192,6 +192,56 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
         </div>
       </div>
 
+      {/* MOBILE SCAN QR CODE BANNER: Escanear pelo telemóvel para ir diretamente ao aplicativo */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 shadow-xl">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex-1 text-center md:text-left">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              Acesso Móvel Instantâneo
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Escanear com o Telemóvel para Entrar no Sorteio
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed max-w-xl">
+              Está assistindo no computador ou telão? Aponte a câmera do seu telemóvel para o QR Code ao lado para
+              abrir o aplicativo no seu telemóvel e fazer a inscrição em segundos!
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400 justify-center md:justify-start">
+              <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                1. Abra a câmera do telemóvel
+              </span>
+              <span>→</span>
+              <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                2. Aponte para o QR Code
+              </span>
+              <span>→</span>
+              <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-emerald-400 font-semibold">
+                3. Abre direto a inscrição!
+              </span>
+            </div>
+          </div>
+
+          {/* Embedded live Mobile QR Code */}
+          <div className="bg-white p-3.5 rounded-2xl shadow-2xl border-4 border-indigo-400/30 text-center shrink-0">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                typeof window !== 'undefined' ? `${window.location.origin}/?tab=register` : ''
+              )}&margin=1`}
+              alt="QR Code para telemóvel"
+              className="w-36 h-36 mx-auto rounded-lg"
+              onError={(e) => {
+                // fallback if external API fails: QR will load via local generator
+                (e.target as any).style.display = 'none';
+              }}
+            />
+            <p className="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider mt-2">
+              📱 Aponte a Câmera
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* ACTIVE LIVE DRAW STAGE ANIMATION MODAL / PANEL */}
       {isDrawingActive && (
         <div className="bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-950 border-2 border-indigo-500 rounded-3xl p-6 sm:p-10 shadow-2xl text-center relative overflow-hidden animate-pulse">

@@ -38,7 +38,17 @@
     "status": "open",
     "allowRegistrations": true,
     "createdAt": "2026-10-13T10:57:38.856Z",
-    "winners": [],
+    "winners": [
+      {
+        "prizeId": "prize-1",
+        "prizeTitle": "MacBook Air M3 / Notebook Gamer Ultra",
+        "participantId": "part-002",
+        "participantName": "Carlos Eduardo Oliveira",
+        "participantEmailMasked": "ca***o@exemplo.com.br",
+        "ticketNumber": "SOR-24915",
+        "drawnAt": "2026-10-13T11:20:12.977Z"
+      }
+    ],
     "settings": {
       "organizerName": "Agimus Tecnologia",
       "contactEmail": "suporte@sorteiolive.com",
@@ -122,8 +132,26 @@
       "qrCodeDataUrl": "data:image/png;base64,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"
     }
   ],
-  "verificationCodes": [],
+  "verificationCodes": [
+    {
+      "email": "juniorfarias@agimus.pt",
+      "code": "641803",
+      "raffleId": "raffle-2026-01",
+      "expiresAt": 1791891153411,
+      "createdAt": "2026-10-13T11:22:33.411Z"
+    }
+  ],
   "emailLog": [
+    {
+      "email": "juniorfarias@agimus.pt",
+      "code": "641803",
+      "sentAt": "2026-10-13T11:22:33.411Z"
+    },
+    {
+      "email": "juniorfarias@agimus.pt",
+      "code": "977061",
+      "sentAt": "2026-10-13T11:18:23.657Z"
+    },
     {
       "email": "novo.participante@teste.com",
       "code": "758899",

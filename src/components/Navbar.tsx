@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Settings } from 'lucide-react';
+import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Settings, Smartphone } from 'lucide-react';
 import { getMuted, setMuted } from '../utils/audio.ts';
 import { Raffle } from '../types.ts';
 
@@ -8,6 +8,7 @@ interface NavbarProps {
   setActiveTab: (tab: 'live' | 'register' | 'lookup' | 'admin' | 'stage') => void;
   participantCount: number;
   raffle?: Raffle | null;
+  onOpenMobileQR: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   participantCount,
   raffle,
+  onOpenMobileQR,
 }) => {
   const [muted, setMutedState] = React.useState(getMuted());
 
@@ -130,6 +132,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-2.5">
+            {/* QR Telemovel quick modal button */}
+            <button
+              onClick={onOpenMobileQR}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-semibold transition-colors cursor-pointer"
+              title="Abrir QR Code para escanear com o telemóvel"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-amber-300" />
+              <span className="hidden sm:inline">QR Telemóvel</span>
+            </button>
+
             {/* Live Participants counter */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

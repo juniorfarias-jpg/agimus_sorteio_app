@@ -185,13 +185,13 @@ export const StageMode: React.FC<StageModeProps> = ({
         )}
       </div>
 
-      {/* Bottom Stage Ticker: Recent winners */}
-      <div className="relative z-10 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-2 text-slate-400 font-bold uppercase">
-          <Trophy className="w-4 h-4 text-amber-400" />
-          Ganhadores Confirmados:
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Bottom Stage Ticker: Recent winners & Mobile Join QR Code */}
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 rounded-3xl p-4">
+        <div className="flex-1 flex flex-wrap items-center gap-3 text-xs">
+          <div className="flex items-center gap-2 text-slate-400 font-bold uppercase">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            Ganhadores Confirmados:
+          </div>
           {raffle.winners.length === 0 ? (
             <span className="text-slate-500">Nenhum ganhador sorteado ainda.</span>
           ) : (
@@ -206,6 +206,21 @@ export const StageMode: React.FC<StageModeProps> = ({
               </span>
             ))
           )}
+        </div>
+
+        {/* Live Stage Mobile Join QR Code */}
+        <div className="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-2xl border border-indigo-500/40 shrink-0">
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+              typeof window !== 'undefined' ? `${window.location.origin}/?tab=register` : ''
+            )}&margin=1`}
+            alt="QR Code Telemovel"
+            className="w-12 h-12 bg-white rounded-lg p-0.5"
+          />
+          <div className="text-left">
+            <p className="text-[11px] font-black text-amber-300 uppercase tracking-wider">Entrar pelo Telemóvel</p>
+            <p className="text-[10px] text-slate-400">Aponte a câmera para participar</p>
+          </div>
         </div>
       </div>
     </div>
