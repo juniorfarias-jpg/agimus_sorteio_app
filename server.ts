@@ -208,11 +208,17 @@ async function startServer() {
   const app = express();
   app.use(express.json());
 
+  // Health check endpoint
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+  });
+
   // SSE endpoint
   app.get('/api/events', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
 
     // Initial event
