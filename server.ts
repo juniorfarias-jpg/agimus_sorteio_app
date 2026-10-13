@@ -264,20 +264,49 @@ async function startServer() {
 
   // GET /api/state
   app.get('/api/state', (req: Request, res: Response) => {
-    const publicParticipants = db.participants.map((p) => ({
+    const participantsList = db.participants.map((p) => ({
       id: p.id,
       ticketNumber: p.ticketNumber,
       name: p.name,
+      email: p.email, // Full unmasked email for administrator
       emailMasked: maskEmail(p.email),
+      phone: p.phone || '',
       city: p.city || '',
       registeredAt: p.registeredAt,
     }));
 
+    const enrichedWinners = db.raffle.winners.map((w) => {
+      const part = db.participants.find((p) => p.id === w.participantId || p.ticketNumber === w.ticketNumber);
+      return {
+        ...w,
+        participantEmail: w.participantEmail || part?.email || '',
+      };
+    });
+
     res.json({
-      raffle: db.raffle,
+      raffle: {
+        ...db.raffle,
+        winners: enrichedWinners,
+      },
       participantCount: db.participants.length,
-      participants: publicParticipants,
-      winners: db.raffle.winners,
+      participants: participantsList,
+      winners: enrichedWinners,
+    });
+  });
+
+  // GET /api/admin/participants (Full unmasked participant details for admin)
+  app.get('/api/admin/participants', (_req: Request, res: Response) => {
+    res.json({
+      participants: db.participants.map((p) => ({
+        id: p.id,
+        ticketNumber: p.ticketNumber,
+        name: p.name,
+        email: p.email, // Full email
+        phone: p.phone || '',
+        city: p.city || '',
+        registeredAt: p.registeredAt,
+      })),
+      total: db.participants.length,
     });
   });
 
@@ -445,7 +474,9 @@ async function startServer() {
         id: newParticipant.id,
         ticketNumber: newParticipant.ticketNumber,
         name: newParticipant.name,
+        email: newParticipant.email,
         emailMasked: maskEmail(newParticipant.email),
+        phone: newParticipant.phone || '',
         city: newParticipant.city || '',
         registeredAt: newParticipant.registeredAt,
         totalParticipants: db.participants.length,
@@ -576,6 +607,7 @@ async function startServer() {
       prizeTitle: prize.title,
       participantId: chosenWinner.id,
       participantName: chosenWinner.name,
+      participantEmail: chosenWinner.email,
       participantEmailMasked: maskEmail(chosenWinner.email),
       ticketNumber: chosenWinner.ticketNumber,
       drawnAt: new Date().toISOString(),

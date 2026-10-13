@@ -11,6 +11,7 @@ export interface Winner {
   prizeTitle: string;
   participantId: string;
   participantName: string;
+  participantEmail?: string;
   participantEmailMasked: string;
   ticketNumber: string;
   drawnAt: string;

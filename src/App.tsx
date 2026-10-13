@@ -45,7 +45,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal'>('live');
   const [raffle, setRaffle] = useState<Raffle>(fallbackRaffle);
   const [participants, setParticipants] = useState<
-    Array<{ id: string; ticketNumber: string; name: string; emailMasked: string; city: string; registeredAt: string }>
+    Array<{ id: string; ticketNumber: string; name: string; email?: string; emailMasked: string; phone?: string; city: string; registeredAt: string }>
   >([]);
   const [participantCount, setParticipantCount] = useState(0);
 
@@ -297,6 +297,7 @@ export default function App() {
             participants={participants}
             onViewTicket={handleViewTicket}
             onRefreshState={fetchState}
+            onClose={() => setActiveTab('live')}
           />
         )}
       </main>
@@ -313,11 +314,11 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© 2026 SorteioLive • {raffle.settings?.organizerName || 'Sistema Seguro de Sorteios com Validação Única & QR Code'}</p>
           <div className="flex items-center gap-3 text-slate-400">
-            <span>Atalho Admin: <kbd className="font-mono text-amber-300 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-[11px] font-bold">Alt + C</kbd></span>
-            <span>•</span>
             <span>Validação por E-mail</span>
             <span>•</span>
             <span>QR Code Oficial</span>
+            <span>•</span>
+            <span>Transparência Pública Auditável</span>
           </div>
         </div>
       </footer>

@@ -35,9 +35,19 @@ import { exportParticipantsPDF, exportWinnersPDF } from '../utils/pdfExport.ts';
 
 interface AdminPanelProps {
   raffle: Raffle;
-  participants: Array<{ id: string; ticketNumber: string; name: string; emailMasked: string; city: string; registeredAt: string }>;
+  participants: Array<{
+    id: string;
+    ticketNumber: string;
+    name: string;
+    email?: string;
+    emailMasked: string;
+    phone?: string;
+    city: string;
+    registeredAt: string;
+  }>;
   onViewTicket: (ticketNum: string) => void;
   onRefreshState: () => void;
+  onClose?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -45,6 +55,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   participants,
   onViewTicket,
   onRefreshState,
+  onClose,
 }) => {
   // Navigation inside Admin Panel
   const [adminTab, setAdminTab] = useState<'draw' | 'settings' | 'prizes' | 'rules' | 'participants' | 'audit'>('draw');
@@ -302,13 +313,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Export CSV
+  // Export CSV with full email for administrator
   const handleExportCSV = () => {
-    const headers = ['Bilhete', 'Nome', 'Email', 'Cidade', 'Data Inscrição'];
+    const headers = ['Bilhete', 'Nome', 'Email Completo', 'Telefone', 'Cidade', 'Data Inscrição'];
     const rows = participants.map((p) => [
       p.ticketNumber,
       `"${p.name.replace(/"/g, '""')}"`,
-      p.emailMasked,
+      p.email || p.emailMasked,
+      `"${(p.phone || '').replace(/"/g, '""')}"`,
       `"${(p.city || '').replace(/"/g, '""')}"`,
       p.registeredAt,
     ]);
@@ -317,7 +329,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `participantes-sorteio-${Date.now()}.csv`);
+    link.setAttribute('download', `participantes-sorteio-admin-${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -330,7 +342,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return (
       p.name.toLowerCase().includes(q) ||
       p.ticketNumber.toLowerCase().includes(q) ||
-      p.emailMasked.toLowerCase().includes(q)
+      (p.email && p.email.toLowerCase().includes(q)) ||
+      p.emailMasked.toLowerCase().includes(q) ||
+      (p.city && p.city.toLowerCase().includes(q))
     );
   });
 
@@ -357,14 +371,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </p>
         </div>
 
-        {/* Global Save & PDF Export Buttons */}
+        {/* Global Save, PDF & Exit Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Voltar para a tela principal (Atalho: Alt + C)"
+            >
+              ← Voltar ao Sorteio
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => exportParticipantsPDF(raffle, participants)}
             disabled={participants.length === 0}
             className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Exportar documento PDF com a relação completa de inscritos"
+            title="Exportar documento PDF com a relação completa de inscritos (com e-mails completos)"
           >
             <FileDown className="w-4 h-4 text-indigo-400" />
             PDF Inscritos ({participants.length})
@@ -372,7 +397,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           <button
             type="button"
-            onClick={() => exportWinnersPDF(raffle)}
+            onClick={() => exportWinnersPDF(raffle, participants)}
             className="py-2.5 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Exportar Ata Oficial de Homologação de Ganhadores em PDF"
           >
@@ -602,6 +627,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Winners table in admin draw tab with FULL unmasked emails */}
+          {raffle.winners.length > 0 && (
+            <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-amber-400" />
+                    Ganhadores Homologados ({raffle.winners.length}) • Visão do Administrador
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    E-mails completos visíveis para contato direto com os contemplados
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => exportWinnersPDF(raffle, participants)}
+                  className="py-1.5 px-3 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 transition-colors cursor-pointer w-fit"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Baixar Ata PDF
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4">Prêmio</th>
+                      <th className="py-3 px-4">Nº Bilhete</th>
+                      <th className="py-3 px-4">Nome do Ganhador</th>
+                      <th className="py-3 px-4">E-mail Completo (Admin)</th>
+                      <th className="py-3 px-4">Data/Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    {raffle.winners.map((w, idx) => {
+                      const fullEmail =
+                        w.participantEmail ||
+                        participants.find((p) => p.ticketNumber === w.ticketNumber || p.id === w.participantId)?.email ||
+                        w.participantEmailMasked;
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="py-3 px-4 font-bold text-amber-400">{w.prizeTitle}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-white">{w.ticketNumber}</td>
+                          <td className="py-3 px-4 font-medium text-white">{w.participantName}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-amber-200 select-all break-all">
+                            {fullEmail}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400 text-[11px]">
+                            {w.drawnAt ? new Date(w.drawnAt).toLocaleString('pt-BR') : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -983,7 +1069,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <tr>
                   <th className="py-3 px-4">Bilhete</th>
                   <th className="py-3 px-4">Nome</th>
-                  <th className="py-3 px-4">E-mail</th>
+                  <th className="py-3 px-4">E-mail (Completo)</th>
                   <th className="py-3 px-4">Cidade</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ações</th>
@@ -1003,7 +1089,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-amber-400">{p.ticketNumber}</td>
                         <td className="py-3 px-4 font-medium text-white">{p.name}</td>
-                        <td className="py-3 px-4 font-mono text-slate-400">{p.emailMasked}</td>
+                        <td className="py-3 px-4 font-mono font-medium text-amber-200 select-all break-all">{p.email || p.emailMasked}</td>
                         <td className="py-3 px-4 text-slate-400">{p.city || '-'}</td>
                         <td className="py-3 px-4">
                           {won ? (

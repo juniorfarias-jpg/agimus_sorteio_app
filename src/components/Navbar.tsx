@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Settings, Smartphone } from 'lucide-react';
+import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Smartphone } from 'lucide-react';
 import { getMuted, setMuted } from '../utils/audio.ts';
 import { Raffle } from '../types.ts';
 
@@ -111,23 +111,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Tv className="w-4 h-4 text-purple-400" />
               Modo Telão
             </button>
-
-            {/* Admin button with Alt + C keyboard shortcut hint */}
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all border ${
-                activeTab === 'admin'
-                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border-slate-700/60'
-              }`}
-              title="Configurações e Administração do Aplicativo (Atalho: Alt + C)"
-            >
-              <Settings className="w-4 h-4 text-amber-400" />
-              <span>Painel Admin</span>
-              <kbd className="hidden lg:inline-block text-[10px] bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded font-mono text-amber-300 font-bold">
-                Alt+C
-              </kbd>
-            </button>
           </nav>
 
           {/* Right Actions */}
@@ -197,14 +180,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             Telão
-          </button>
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`px-2.5 py-1.5 rounded-md font-medium whitespace-nowrap flex items-center gap-1 ${
-              activeTab === 'admin' ? 'bg-indigo-600 text-white' : 'text-amber-400'
-            }`}
-          >
-            Admin (Alt+C)
           </button>
         </div>
       </div>

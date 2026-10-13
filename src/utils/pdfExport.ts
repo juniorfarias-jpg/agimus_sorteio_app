@@ -7,6 +7,7 @@ export function exportParticipantsPDF(
   participants: Array<{
     ticketNumber: string;
     name: string;
+    email?: string;
     emailMasked: string;
     city: string;
     registeredAt: string;
@@ -34,7 +35,7 @@ export function exportParticipantsPDF(
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('SorteioLive • Relatório Oficial de Inscritos', 14, 14);
+  doc.text('SorteioLive • Relatório Oficial de Inscritos (Admin)', 14, 14);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -47,7 +48,7 @@ export function exportParticipantsPDF(
   doc.text(`Data de Emissão: ${currentDate}`, 14, 38);
   doc.text(`Total de Participantes Auditados: ${participants.length}`, 14, 43);
 
-  // Table Data
+  // Table Data with full unmasked email for administrator
   const tableRows = participants.map((p, index) => {
     const isWinner = raffle.winners.some((w) => w.ticketNumber === p.ticketNumber);
     const dateFormatted = p.registeredAt
@@ -64,7 +65,7 @@ export function exportParticipantsPDF(
       String(index + 1),
       p.ticketNumber,
       p.name,
-      p.emailMasked,
+      p.email || p.emailMasked, // Full unmasked email for administrator
       p.city || '-',
       dateFormatted,
       isWinner ? '🏆 Premiado' : 'Validado ✓',
@@ -73,7 +74,7 @@ export function exportParticipantsPDF(
 
   autoTable(doc, {
     startY: 48,
-    head: [['#', 'Nº Bilhete', 'Nome do Participante', 'E-mail Validado', 'Cidade/UF', 'Data Inscrição', 'Status']],
+    head: [['#', 'Nº Bilhete', 'Nome do Participante', 'E-mail Completo', 'Cidade/UF', 'Data Inscrição', 'Status']],
     body: tableRows,
     theme: 'striped',
     headStyles: {
@@ -117,7 +118,10 @@ export function exportParticipantsPDF(
   doc.save(`relatorio-participantes-${cleanFilename}.pdf`);
 }
 
-export function exportWinnersPDF(raffle: Raffle) {
+export function exportWinnersPDF(
+  raffle: Raffle,
+  participants?: Array<{ id: string; ticketNumber: string; email?: string; emailMasked?: string }>
+) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -165,7 +169,7 @@ export function exportWinnersPDF(raffle: Raffle) {
   const splitIntro = doc.splitTextToSize(introText, pageWidth - 28);
   doc.text(splitIntro, 14, 49);
 
-  // Table of Winners
+  // Table of Winners with full unmasked email for official validation
   const winnersRows = raffle.prizes.map((prize) => {
     const winner = raffle.winners.find((w) => w.prizeId === prize.id);
     const dateFormatted = winner?.drawnAt
@@ -178,19 +182,27 @@ export function exportWinnersPDF(raffle: Raffle) {
         })
       : 'Aguardando Sorteio';
 
+    let winnerEmail = '-';
+    if (winner) {
+      winnerEmail =
+        winner.participantEmail ||
+        participants?.find((p) => p.ticketNumber === winner.ticketNumber || p.id === winner.participantId)?.email ||
+        winner.participantEmailMasked;
+    }
+
     return [
       `${prize.rank}º Lugar`,
       prize.title,
       winner ? winner.ticketNumber : '-',
       winner ? winner.participantName : 'Pendente de Apuração',
-      winner ? winner.participantEmailMasked : '-',
+      winnerEmail,
       dateFormatted,
     ];
   });
 
   autoTable(doc, {
     startY: 68,
-    head: [['Colocação', 'Prêmio Oficial', 'Nº Bilhete', 'Nome do Contemplado', 'E-mail Mascarado', 'Data/Hora Apuração']],
+    head: [['Colocação', 'Prêmio Oficial', 'Nº Bilhete', 'Nome do Contemplado', 'E-mail do Ganhador', 'Data/Hora Apuração']],
     body: winnersRows,
     theme: 'grid',
     headStyles: {
@@ -206,12 +218,12 @@ export function exportWinnersPDF(raffle: Raffle) {
       textColor: [30, 30, 30],
     },
     columnStyles: {
-      0: { cellWidth: 20, fontStyle: 'bold', halign: 'center' },
-      1: { cellWidth: 44, fontStyle: 'bold' },
-      2: { cellWidth: 25, fontStyle: 'bold', textColor: [180, 83, 9] },
-      3: { cellWidth: 38 },
-      4: { cellWidth: 30 },
-      5: { cellWidth: 25, fontSize: 7.5 },
+      0: { cellWidth: 18, fontStyle: 'bold', halign: 'center' },
+      1: { cellWidth: 42, fontStyle: 'bold' },
+      2: { cellWidth: 24, fontStyle: 'bold', textColor: [180, 83, 9] },
+      3: { cellWidth: 36 },
+      4: { cellWidth: 38 },
+      5: { cellWidth: 24, fontSize: 7.5 },
     },
   });
 
