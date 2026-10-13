@@ -212,14 +212,14 @@ export const StageMode: React.FC<StageModeProps> = ({
         <div className="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-2xl border border-indigo-500/40 shrink-0">
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
-              typeof window !== 'undefined' ? `${window.location.origin}/?tab=register` : ''
+              typeof window !== 'undefined' ? `${window.location.origin}/?portal=participante` : ''
             )}&margin=1`}
             alt="QR Code Telemovel"
             className="w-12 h-12 bg-white rounded-lg p-0.5"
           />
           <div className="text-left">
-            <p className="text-[11px] font-black text-amber-300 uppercase tracking-wider">Entrar pelo Telemóvel</p>
-            <p className="text-[10px] text-slate-400">Aponte a câmera para participar</p>
+            <p className="text-[11px] font-black text-amber-300 uppercase tracking-wider">Inscrição & Ganhadores</p>
+            <p className="text-[10px] text-slate-400">Aponte a câmera do telemóvel</p>
           </div>
         </div>
       </div>

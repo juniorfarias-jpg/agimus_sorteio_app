@@ -28,8 +28,10 @@ import {
   Unlock,
   QrCode,
   Flame,
+  FileDown,
 } from 'lucide-react';
 import { AppSettings, Prize, Raffle } from '../types.ts';
+import { exportParticipantsPDF, exportWinnersPDF } from '../utils/pdfExport.ts';
 
 interface AdminPanelProps {
   raffle: Raffle;
@@ -355,15 +357,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </p>
         </div>
 
-        {/* Global Save Button */}
-        <div className="flex items-center gap-3">
+        {/* Global Save & PDF Export Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => exportParticipantsPDF(raffle, participants)}
+            disabled={participants.length === 0}
+            className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Exportar documento PDF com a relação completa de inscritos"
+          >
+            <FileDown className="w-4 h-4 text-indigo-400" />
+            PDF Inscritos ({participants.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => exportWinnersPDF(raffle)}
+            className="py-2.5 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Exportar Ata Oficial de Homologação de Ganhadores em PDF"
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
+            PDF Ata de Ganhadores
+          </button>
+
           <button
             onClick={() => handleSaveFullConfig()}
             disabled={loadingAction}
-            className="py-3 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/25 flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.02]"
+            className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-extrabold text-xs shadow-xl shadow-emerald-600/25 flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.02]"
           >
             <Save className="w-4 h-4" />
-            Salvar Todas as Configurações
+            Salvar Configurações
           </button>
         </div>
       </div>
@@ -911,6 +934,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 <Plus className="w-3.5 h-3.5 text-emerald-400" />
                 Adicionar Participantes Demo
+              </button>
+
+              <button
+                type="button"
+                onClick={() => exportParticipantsPDF(raffle, participants)}
+                disabled={participants.length === 0}
+                className="py-2 px-3 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-semibold border border-indigo-500/40 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+              >
+                <FileDown className="w-3.5 h-3.5 text-indigo-400" />
+                Exportar PDF
               </button>
 
               <button

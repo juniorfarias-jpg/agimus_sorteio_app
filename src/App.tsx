@@ -7,6 +7,7 @@ import { AdminPanel } from './components/AdminPanel.tsx';
 import { StageMode } from './components/StageMode.tsx';
 import { Participant, Prize, Raffle, Winner } from './types.ts';
 import { MobileJoinQRModal } from './components/MobileJoinQRModal.tsx';
+import { ParticipantPortal } from './components/ParticipantPortal.tsx';
 import { Settings } from 'lucide-react';
 
 const fallbackRaffle: Raffle = {
@@ -41,7 +42,7 @@ const fallbackRaffle: Raffle = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal'>('live');
   const [raffle, setRaffle] = useState<Raffle>(fallbackRaffle);
   const [participants, setParticipants] = useState<
     Array<{ id: string; ticketNumber: string; name: string; emailMasked: string; city: string; registeredAt: string }>
@@ -105,12 +106,15 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const ticketParam = params.get('ticket');
     const tabParam = params.get('tab');
+    const portalParam = params.get('portal');
 
-    if (ticketParam) {
+    if (portalParam === 'participante' || tabParam === 'portal') {
+      setActiveTab('portal');
+    } else if (ticketParam) {
       setUrlTicket(ticketParam);
       setActiveTab('live');
     } else if (tabParam === 'register') {
-      setActiveTab('register');
+      setActiveTab('portal');
     } else if (tabParam === 'lookup') {
       setActiveTab('lookup');
     } else if (tabParam === 'admin') {
@@ -271,8 +275,8 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'register' && (
-          <RegistrationForm
+        {(activeTab === 'register' || activeTab === 'portal') && (
+          <ParticipantPortal
             raffle={raffle}
             onRegistered={handleRegistered}
             onViewExistingTicket={handleViewTicket}

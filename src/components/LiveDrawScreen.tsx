@@ -13,10 +13,12 @@ import {
   ShieldCheck,
   Award,
   Flame,
+  FileDown,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Participant, Prize, Raffle, Winner } from '../types.ts';
 import { playFanfare, playTickSound, startDrumroll, stopDrumroll } from '../utils/audio.ts';
+import { exportWinnersPDF } from '../utils/pdfExport.ts';
 
 interface LiveDrawScreenProps {
   raffle: Raffle;
@@ -201,23 +203,23 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
               Acesso Móvel Instantâneo
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white">
-              Escanear com o Telemóvel para Entrar no Sorteio
+              Escanear com o Telemóvel: Inscrição & Consulta de Ganhadores
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed max-w-xl">
               Está assistindo no computador ou telão? Aponte a câmera do seu telemóvel para o QR Code ao lado para
-              abrir o aplicativo no seu telemóvel e fazer a inscrição em segundos!
+              abrir diretamente o <strong>formulário de inscrição</strong> e <strong>consultar os ganhadores do prêmio</strong>!
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400 justify-center md:justify-start">
               <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                1. Abra a câmera do telemóvel
-              </span>
-              <span>→</span>
-              <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                2. Aponte para o QR Code
+                1. Aponte a câmera do telemóvel
               </span>
               <span>→</span>
               <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-emerald-400 font-semibold">
-                3. Abre direto a inscrição!
+                2. Formulário de Inscrição
+              </span>
+              <span>→</span>
+              <span className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-amber-300 font-semibold">
+                3. Consulta de Ganhadores!
               </span>
             </div>
           </div>
@@ -226,17 +228,16 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
           <div className="bg-white p-3.5 rounded-2xl shadow-2xl border-4 border-indigo-400/30 text-center shrink-0">
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                typeof window !== 'undefined' ? `${window.location.origin}/?tab=register` : ''
+                typeof window !== 'undefined' ? `${window.location.origin}/?portal=participante` : ''
               )}&margin=1`}
-              alt="QR Code para telemóvel"
+              alt="QR Code para formulário de inscrição e consulta de ganhadores"
               className="w-36 h-36 mx-auto rounded-lg"
               onError={(e) => {
-                // fallback if external API fails: QR will load via local generator
                 (e.target as any).style.display = 'none';
               }}
             />
             <p className="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider mt-2">
-              📱 Aponte a Câmera
+              📱 Inscrição & Ganhadores
             </p>
           </div>
         </div>
@@ -321,9 +322,19 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
               </div>
             </div>
 
-            <span className="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-              {raffle.winners.length} Sorteado(s)
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => exportWinnersPDF(raffle)}
+                className="py-1.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Baixar Ata Oficial de Homologação dos Ganhadores em PDF"
+              >
+                <FileDown className="w-3.5 h-3.5 text-amber-400" />
+                <span>Ata em PDF</span>
+              </button>
+              <span className="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                {raffle.winners.length} Sorteado(s)
+              </span>
+            </div>
           </div>
 
           {raffle.winners.length === 0 ? (

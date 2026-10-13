@@ -4,8 +4,8 @@ import { getMuted, setMuted } from '../utils/audio.ts';
 import { Raffle } from '../types.ts';
 
 interface NavbarProps {
-  activeTab: 'live' | 'register' | 'lookup' | 'admin' | 'stage';
-  setActiveTab: (tab: 'live' | 'register' | 'lookup' | 'admin' | 'stage') => void;
+  activeTab: 'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal';
+  setActiveTab: (tab: 'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal') => void;
   participantCount: number;
   raffle?: Raffle | null;
   onOpenMobileQR: () => void;
