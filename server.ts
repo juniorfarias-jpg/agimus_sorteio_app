@@ -385,58 +385,51 @@ async function startServer() {
   // POST /api/register
   app.post('/api/register', async (req: Request, res: Response) => {
     try {
-      const { email, code, name, phone, city } = req.body;
+      const { email, name, phone, city } = req.body;
 
-      if (!email || !code || !name) {
-        return res.status(400).json({ error: 'Nome, e-mail e código de validação são obrigatórios.' });
+      if (!email || !name) {
+        return res.status(400).json({ error: 'Nome completo e e-mail são obrigatórios para a inscrição.' });
       }
 
       const cleanEmail = email.trim().toLowerCase();
-      const cleanCode = String(code).trim();
       const cleanName = String(name).trim();
 
-      if (cleanName.length < 3) {
-        return res.status(400).json({ error: 'Por favor, informe seu nome completo (mínimo 3 caracteres).' });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return res.status(400).json({ error: 'Por favor, informe um endereço de e-mail válido (ex: nome@exemplo.com).' });
+      }
+
+      if (cleanName.length < 2) {
+        return res.status(400).json({ error: 'Por favor, informe seu nome completo (mínimo 2 caracteres).' });
       }
 
       if (!db.raffle.allowRegistrations || db.raffle.status === 'completed') {
         return res.status(400).json({ error: 'Inscrições encerradas para este sorteio.' });
       }
 
-      // Check required fields based on settings
-      if (db.raffle.settings?.requirePhone && (!phone || !String(phone).trim())) {
-        return res.status(400).json({ error: 'O telefone/WhatsApp é obrigatório de acordo com as configurações do sorteio.' });
-      }
-      if (db.raffle.settings?.requireCity && (!city || !String(city).trim())) {
-        return res.status(400).json({ error: 'A cidade/estado é obrigatória de acordo com as configurações do sorteio.' });
+      if (db.raffle.settings?.maxParticipants && db.raffle.settings.maxParticipants > 0 && db.participants.length >= db.raffle.settings.maxParticipants) {
+        return res.status(400).json({ error: 'O limite máximo de participantes deste sorteio já foi atingido.' });
       }
 
-      // 1. Strict duplicate check
+      // Check required fields based on settings requested by the administrator
+      if (db.raffle.settings?.requirePhone && (!phone || !String(phone).trim())) {
+        return res.status(400).json({ error: 'O telefone / WhatsApp é obrigatório para participar deste sorteio.' });
+      }
+      if (db.raffle.settings?.requireCity && (!city || !String(city).trim())) {
+        return res.status(400).json({ error: 'A cidade / localidade é obrigatória para participar deste sorteio.' });
+      }
+
+      // 1. Strict duplicate check (1 participation per email)
       const existing = db.participants.find(
         (p) => p.email.toLowerCase() === cleanEmail && p.raffleId === db.raffle.id
       );
       if (existing) {
         return res.status(409).json({
-          error: 'Este e-mail já possui um bilhete cadastrado para este sorteio. Limite de 1 inscrição por pessoa.',
+          error: `Este e-mail já possui uma inscrição confirmada com o bilhete ${existing.ticketNumber}. Limite de 1 inscrição por participante.`,
           ticketNumber: existing.ticketNumber,
+          participant: existing,
         });
       }
-
-      // 2. Validate email verification code
-      const record = db.verificationCodes.find(
-        (v) => v.email === cleanEmail && v.raffleId === db.raffle.id && v.code === cleanCode
-      );
-
-      if (!record) {
-        return res.status(400).json({ error: 'Código de verificação incorreto ou não encontrado para este e-mail.' });
-      }
-
-      if (Date.now() > record.expiresAt) {
-        return res.status(400).json({ error: 'O código de verificação expirou. Por favor, solicite um novo código.' });
-      }
-
-      // Invalidate code so it cannot be reused
-      db.verificationCodes = db.verificationCodes.filter((v) => v !== record);
 
       // 3. Generate unique ticket number
       let ticketNumber = '';

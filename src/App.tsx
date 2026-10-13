@@ -8,7 +8,7 @@ import { StageMode } from './components/StageMode.tsx';
 import { Participant, Prize, Raffle, Winner } from './types.ts';
 import { MobileJoinQRModal } from './components/MobileJoinQRModal.tsx';
 import { ParticipantPortal } from './components/ParticipantPortal.tsx';
-import { Settings } from 'lucide-react';
+import { Settings, Gift, Sparkles } from 'lucide-react';
 
 const fallbackRaffle: Raffle = {
   id: 'raffle-2026-01',
@@ -248,13 +248,37 @@ export default function App() {
       )}
 
       {/* Top Navigation */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        participantCount={participantCount}
-        raffle={raffle}
-        onOpenMobileQR={() => setIsMobileQRModalOpen(true)}
-      />
+      {activeTab === 'portal' ? (
+        <header className="border-b border-slate-900 bg-slate-950/95 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-rose-500 flex items-center justify-center shadow-md">
+                <Gift className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <span className="font-extrabold text-sm text-white block leading-tight">SorteioLive</span>
+                <span className="text-[10px] text-emerald-400 font-bold block">Inscrição para o Sorteio</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActiveTab('live')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              Ver Ao Vivo
+            </button>
+          </div>
+        </header>
+      ) : (
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          participantCount={participantCount}
+          raffle={raffle}
+          onOpenMobileQR={() => setIsMobileQRModalOpen(true)}
+        />
+      )}
 
       {/* Main Content View */}
       <main className="flex-1 pb-16">
@@ -314,7 +338,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© 2026 SorteioLive • {raffle.settings?.organizerName || 'Sistema Seguro de Sorteios com Validação Única & QR Code'}</p>
           <div className="flex items-center gap-3 text-slate-400">
-            <span>Validação por E-mail</span>
+            <span>Inscrição Direta</span>
             <span>•</span>
             <span>QR Code Oficial</span>
             <span>•</span>

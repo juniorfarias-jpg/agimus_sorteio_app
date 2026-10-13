@@ -17,7 +17,7 @@ export const ParticipantPortal: React.FC<ParticipantPortalProps> = ({
   onViewExistingTicket,
   onGoToLive,
 }) => {
-  const [subTab, setSubTab] = useState<'register' | 'winners'>('register');
+  const [viewMode, setViewMode] = useState<'register' | 'winners'>('register');
   const [searchQuery, setSearchQuery] = useState('');
   const [queriedTicket, setQueriedTicket] = useState<Participant | null>(null);
   const [queriedWinner, setQueriedWinner] = useState<Winner | null>(null);
@@ -50,72 +50,37 @@ export const ParticipantPortal: React.FC<ParticipantPortalProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-10">
-      {/* Participant Top Card */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          Portal do Participante Oficial
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-          {raffle.title}
-        </h1>
-        <p className="text-xs text-slate-300 mt-1">
-          {raffle.settings?.organizerName || 'Comissão Oficial de Sorteios'}
-        </p>
-      </div>
+    <div className="max-w-2xl mx-auto px-4 py-4 sm:py-6">
+      {/* View Switcher only if viewing winners or explicitly wanting to check */}
+      {viewMode === 'winners' ? (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+            <div>
+              <h2 className="text-base font-black text-white flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-400" />
+                Consulta de Ganhadores & Bilhetes
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Verifique se o seu bilhete foi contemplado no sorteio
+              </p>
+            </div>
+            <button
+              onClick={() => setViewMode('register')}
+              className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <Ticket className="w-4 h-4" />
+              Voltar à Inscrição
+            </button>
+          </div>
 
-      {/* Two-Tab Navigation specifically requested */}
-      <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-900 border border-slate-800 rounded-2xl mb-6 shadow-lg">
-        <button
-          onClick={() => setSubTab('register')}
-          className={`py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            subTab === 'register'
-              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30 font-extrabold'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Ticket className="w-4 h-4" />
-          Formulário de Inscrição
-        </button>
-
-        <button
-          onClick={() => setSubTab('winners')}
-          className={`py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            subTab === 'winners'
-              ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white shadow-md shadow-amber-600/30 font-extrabold'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Trophy className="w-4 h-4 text-amber-300" />
-          Consultar Ganhadores
-        </button>
-      </div>
-
-      {/* VIEW 1: FORMULÁRIO DE INSCRIÇÃO */}
-      {subTab === 'register' && (
-        <div>
-          <RegistrationForm
-            raffle={raffle}
-            onRegistered={onRegistered}
-            onViewExistingTicket={onViewExistingTicket}
-            onGoToLive={onGoToLive}
-          />
-        </div>
-      )}
-
-      {/* VIEW 2: CONSULTAR GANHADORES DO PRÊMIO */}
-      {subTab === 'winners' && (
-        <div className="space-y-6">
           {/* Quick Ticket Checker */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h2 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
               <Search className="w-4 h-4 text-amber-400" />
-              Verificar se seu Bilhete foi Contemplado
-            </h2>
+              Verificar se seu Bilhete foi Premiado
+            </h3>
             <p className="text-xs text-slate-400 mb-4">
-              Digite o número do seu bilhete (ex: <code className="text-amber-300 font-mono">SOR-10842</code>) ou seu
-              e-mail cadastrado:
+              Digite o número do seu bilhete (ex: <code className="text-amber-300 font-mono">SOR-10842</code>) ou seu e-mail cadastrado:
             </p>
 
             <form onSubmit={handleSearchTicket} className="flex gap-2">
@@ -157,7 +122,7 @@ export const ParticipantPortal: React.FC<ParticipantPortalProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">Ganhadores Oficiais</h2>
-                  <p className="text-[11px] text-slate-400">Resultados apurados ao vivo na base de dados</p>
+                  <p className="text-[11px] text-slate-400">Resultados apurados na base de dados</p>
                 </div>
               </div>
               <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
@@ -170,7 +135,7 @@ export const ParticipantPortal: React.FC<ParticipantPortalProps> = ({
                 <Trophy className="w-10 h-10 text-slate-600 mx-auto mb-2" />
                 <p className="font-semibold text-slate-300">Nenhum prêmio foi sorteado ainda.</p>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  As inscrições estão abertas! Assim que a comissão realizar a apuração, os ganhadores aparecerão aqui.
+                  As inscrições estão abertas! Assim que a apuração for realizada, os ganhadores aparecerão aqui.
                 </p>
               </div>
             ) : (
@@ -205,54 +170,29 @@ export const ParticipantPortal: React.FC<ParticipantPortalProps> = ({
               </div>
             )}
           </div>
+        </div>
+      ) : (
+        /* PURE REGISTRATION FORM VIEW */
+        <div className="animate-fade-in">
+          <RegistrationForm
+            raffle={raffle}
+            onRegistered={onRegistered}
+            onViewExistingTicket={onViewExistingTicket}
+            onGoToLive={onGoToLive}
+          />
 
-          {/* Catalog of Prizes */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Gift className="w-4 h-4 text-indigo-400" />
-              Lista de Prêmios do Sorteio
-            </h3>
-            <div className="space-y-2">
-              {raffle.prizes.map((p) => {
-                const won = raffle.winners.find((w) => w.prizeId === p.id);
-                return (
-                  <div
-                    key={p.id}
-                    className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-6 h-6 rounded-full bg-slate-800 font-bold text-slate-300 flex items-center justify-center text-[11px]">
-                        {p.rank}º
-                      </span>
-                      <span className="font-medium text-slate-200">{p.title}</span>
-                    </div>
-                    {won ? (
-                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                        {won.participantName}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        Em Disputa
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Quick toggle to consult winners if desired */}
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setViewMode('winners')}
+              className="text-xs text-amber-400/90 hover:text-amber-300 font-semibold py-1.5 px-3 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-amber-500/30 transition-all inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              Consultar lista de ganhadores do prêmio
+            </button>
           </div>
         </div>
       )}
-
-      {/* Switch to Full Screen Broadcast link */}
-      <div className="mt-8 text-center pt-4 border-t border-slate-900">
-        <button
-          onClick={onGoToLive}
-          className="text-xs text-indigo-400 hover:text-indigo-300 font-medium py-1 transition-colors inline-flex items-center gap-1 cursor-pointer"
-        >
-          Acessar Transmissão Completa com Telão do Sorteio
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
     </div>
   );
 };

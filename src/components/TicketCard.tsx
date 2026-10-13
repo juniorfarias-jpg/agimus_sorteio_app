@@ -68,7 +68,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({ participant, winnerInfo,
           </div>
           <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs font-bold">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Validado por E-mail
+            Inscrição Confirmada
           </div>
         </div>
 
@@ -89,7 +89,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({ participant, winnerInfo,
           </div>
           <div className="flex justify-between items-center pt-2 border-t border-slate-800/80">
             <div>
-              <span className="text-xs text-slate-400 block font-medium">E-mail Validado</span>
+              <span className="text-xs text-slate-400 block font-medium">E-mail Registrado</span>
               <span className="font-medium text-slate-300 text-xs font-mono">{participant.email}</span>
             </div>
             <ShieldCheck className="w-5 h-5 text-emerald-400" />

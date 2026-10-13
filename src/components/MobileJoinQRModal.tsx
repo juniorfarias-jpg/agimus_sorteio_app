@@ -62,14 +62,14 @@ export const MobileJoinQRModal: React.FC<MobileJoinQRModalProps> = ({
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
           <Sparkles className="w-3.5 h-3.5" />
-          Acesso Móvel: Inscrição & Consulta de Ganhadores
+          Acesso Móvel: Inscrição no Sorteio
         </div>
 
         <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
           Escanear com o Telemóvel
         </h2>
         <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
-          Aponte a câmera do seu telemóvel para abrir diretamente o formulário de inscrição e consultar os ganhadores do prêmio!
+          Aponte a câmera do seu telemóvel para abrir diretamente o formulário de inscrição para o sorteio!
         </p>
 
         {/* QR Code Container */}

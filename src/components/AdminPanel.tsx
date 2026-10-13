@@ -925,22 +925,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               />
             </div>
 
-            {/* Code expiration */}
+            {/* Inscrição Direta Info */}
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
-                Validade do Código de E-mail (Minutos)
+              <label className="block text-xs font-semibold text-emerald-400 uppercase mb-1 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                Validação Direta via QR Code
               </label>
-              <p className="text-xs text-slate-400 mb-2">Tempo que o código de 6 dígitos permanece ativo.</p>
-              <select
-                value={settings.codeExpirationMinutes}
-                onChange={(e) => setSettings({ ...settings, codeExpirationMinutes: parseInt(e.target.value) || 10 })}
-                className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-              >
-                <option value={5}>5 Minutos</option>
-                <option value={10}>10 Minutos (Padrão)</option>
-                <option value={15}>15 Minutos</option>
-                <option value={30}>30 Minutos</option>
-              </select>
+              <p className="text-xs text-slate-300 mb-1">
+                Inscrição simplificada ativa: participantes preenchem os dados solicitados e emitem o bilhete diretamente, sem necessidade de código por e-mail.
+              </p>
+              <span className="inline-block text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                Sem código por e-mail (Ativo)
+              </span>
             </div>
 
             {/* Require Phone Toggle */}
