@@ -6,6 +6,7 @@ import { TicketLookup } from './components/TicketLookup.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { StageMode } from './components/StageMode.tsx';
 import { Participant, Prize, Raffle, Winner } from './types.ts';
+import { Settings, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage'>('live');
@@ -24,6 +25,9 @@ export default function App() {
   const [urlTicket, setUrlTicket] = useState<string | null>(null);
   const [selectedLookupTicket, setSelectedLookupTicket] = useState<string>('');
 
+  // Toast indicator for shortcut
+  const [shortcutToast, setShortcutToast] = useState<string | null>(null);
+
   // Fetch initial state
   const fetchState = useCallback(async () => {
     try {
@@ -39,13 +43,31 @@ export default function App() {
     }
   }, []);
 
+  // Global Keyboard Shortcut: "Alt" + "c"
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check Alt + C (case-insensitive and resilient across layouts)
+      if (e.altKey && (e.key === 'c' || e.key === 'C' || e.code === 'KeyC')) {
+        e.preventDefault();
+        setActiveTab((prev) => {
+          const next = prev === 'admin' ? 'live' : 'admin';
+          setShortcutToast(next === 'admin' ? 'Abrindo Painel Admin (Alt + C)' : 'Voltando à Tela Principal (Alt + C)');
+          setTimeout(() => setShortcutToast(null), 2500);
+          return next;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Parse URL search params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ticketParam = params.get('ticket');
     if (ticketParam) {
       setUrlTicket(ticketParam);
-      // Main screen opens and shows the ticket banner as requested!
       setActiveTab('live');
     }
   }, []);
@@ -177,11 +199,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+      {/* Toast alert on keyboard shortcut */}
+      {shortcutToast && (
+        <div className="fixed top-20 right-6 z-50 bg-indigo-600 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border border-indigo-400/40 animate-bounce">
+          <Settings className="w-4 h-4 text-amber-300" />
+          <span>{shortcutToast}</span>
+        </div>
+      )}
+
       {/* Top Navigation */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         participantCount={participantCount}
+        raffle={raffle}
       />
 
       {/* Main Content View */}
@@ -232,13 +263,13 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 SorteioLive • Sistema Seguro de Sorteios com Validação Única & QR Code</p>
-          <div className="flex items-center gap-4 text-slate-400">
+          <p>© 2026 SorteioLive • {raffle.settings?.organizerName || 'Sistema Seguro de Sorteios com Validação Única & QR Code'}</p>
+          <div className="flex items-center gap-3 text-slate-400">
+            <span>Atalho Admin: <kbd className="font-mono text-amber-300 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-[11px] font-bold">Alt + C</kbd></span>
+            <span>•</span>
             <span>Validação por E-mail</span>
             <span>•</span>
-            <span>QR Code Redireciona para Tela Principal</span>
-            <span>•</span>
-            <span>1 Inscrição por Pessoa</span>
+            <span>QR Code Oficial</span>
           </div>
         </div>
       </footer>

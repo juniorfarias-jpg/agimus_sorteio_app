@@ -424,6 +424,28 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
               );
             })}
           </div>
+
+          {/* Official Rules & Contact Configured via Admin */}
+          {raffle.settings && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400">
+                Regulamento Oficial
+              </h4>
+              <div className="text-xs text-slate-300 whitespace-pre-line leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px]">
+                {raffle.settings.rulesText || 'Inscrição única por e-mail com validação em tempo real.'}
+              </div>
+              {(raffle.settings.contactEmail || raffle.settings.contactPhone) && (
+                <div className="pt-2 text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                  {raffle.settings.contactEmail && (
+                    <span>Contato: <strong className="text-slate-300">{raffle.settings.contactEmail}</strong></span>
+                  )}
+                  {raffle.settings.contactPhone && (
+                    <span>WhatsApp: <strong className="text-slate-300">{raffle.settings.contactPhone}</strong></span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

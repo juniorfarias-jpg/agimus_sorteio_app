@@ -3,6 +3,7 @@ export interface Prize {
   rank: number;
   title: string;
   description?: string;
+  estimatedValue?: string;
 }
 
 export interface Winner {
@@ -28,6 +29,21 @@ export interface Participant {
   qrCodeDataUrl?: string;
 }
 
+export interface AppSettings {
+  organizerName: string;
+  contactEmail: string;
+  contactPhone: string;
+  rulesText: string;
+  requirePhone: boolean;
+  requireCity: boolean;
+  maxParticipants: number; // 0 = unlimited
+  codeExpirationMinutes: number;
+  soundEnabledByDefault: boolean;
+  adminPin: string;
+  announcementBanner: string;
+  showAnnouncement: boolean;
+}
+
 export interface Raffle {
   id: string;
   title: string;
@@ -38,6 +54,7 @@ export interface Raffle {
   createdAt: string;
   drawnAt?: string;
   winners: Winner[];
+  settings: AppSettings;
 }
 
 export interface VerificationCode {

@@ -1,18 +1,20 @@
 import React from 'react';
-import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles } from 'lucide-react';
+import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Settings } from 'lucide-react';
 import { getMuted, setMuted } from '../utils/audio.ts';
+import { Raffle } from '../types.ts';
 
 interface NavbarProps {
   activeTab: 'live' | 'register' | 'lookup' | 'admin' | 'stage';
   setActiveTab: (tab: 'live' | 'register' | 'lookup' | 'admin' | 'stage') => void;
   participantCount: number;
-  isRegisteredUser?: boolean;
+  raffle?: Raffle | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   participantCount,
+  raffle,
 }) => {
   const [muted, setMutedState] = React.useState(getMuted());
 
@@ -22,8 +24,18 @@ export const Navbar: React.FC<NavbarProps> = ({
     setMutedState(newState);
   };
 
+  const announcement = raffle?.settings?.showAnnouncement ? raffle?.settings?.announcementBanner : null;
+
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white">
+    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white">
+      {/* Top Announcement Bar if configured */}
+      {announcement && (
+        <div className="bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-600 py-1.5 px-4 text-center text-xs font-bold text-white shadow-inner flex items-center justify-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse" />
+          <span>{announcement}</span>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand */}
@@ -41,7 +53,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   AO VIVO
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">Sorteios com Validação & QR Code</p>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {raffle?.settings?.organizerName || 'Sorteios com Validação & QR Code'}
+              </p>
             </div>
           </div>
 
@@ -96,16 +110,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               Modo Telão
             </button>
 
+            {/* Admin button with Alt + C keyboard shortcut hint */}
             <button
               onClick={() => setActiveTab('admin')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all border ${
                 activeTab === 'admin'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border-slate-700/60'
               }`}
+              title="Configurações e Administração do Aplicativo (Atalho: Alt + C)"
             >
-              <Users className="w-4 h-4 text-cyan-400" />
-              Painel Admin
+              <Settings className="w-4 h-4 text-amber-400" />
+              <span>Painel Admin</span>
+              <kbd className="hidden lg:inline-block text-[10px] bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded font-mono text-amber-300 font-bold">
+                Alt+C
+              </kbd>
             </button>
           </nav>
 
@@ -157,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               activeTab === 'lookup' ? 'bg-indigo-600 text-white' : 'text-slate-300'
             }`}
           >
-            Meu QR Code
+            Meu QR
           </button>
           <button
             onClick={() => setActiveTab('stage')}
@@ -169,11 +188,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('admin')}
-            className={`px-2.5 py-1.5 rounded-md font-medium whitespace-nowrap ${
-              activeTab === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-300'
+            className={`px-2.5 py-1.5 rounded-md font-medium whitespace-nowrap flex items-center gap-1 ${
+              activeTab === 'admin' ? 'bg-indigo-600 text-white' : 'text-amber-400'
             }`}
           >
-            Admin
+            Admin (Alt+C)
           </button>
         </div>
       </div>

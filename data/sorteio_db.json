@@ -1,7 +1,7 @@
 {
   "raffle": {
     "id": "raffle-2026-01",
-    "title": "Grande Sorteio Oficial de Tecnologia 2026",
+    "title": "Sorteio Premium Oficial 2026",
     "description": "Participe do maior sorteio comunitário do ano! Inscrição 100% gratuita, validação segura por e-mail e emissão de QR Code oficial para cada bilhete.",
     "prizes": [
       {
@@ -38,7 +38,21 @@
     "status": "open",
     "allowRegistrations": true,
     "createdAt": "2026-10-13T10:57:38.856Z",
-    "winners": []
+    "winners": [],
+    "settings": {
+      "organizerName": "Agimus Tecnologia",
+      "contactEmail": "suporte@sorteiolive.com",
+      "contactPhone": "(11) 98765-4321",
+      "rulesText": "1. Cada participante tem direito a 1 (um) único bilhete validado por e-mail.\n2. O QR Code gerado é o comprovante oficial de participação.\n3. O sorteio é realizado ao vivo com transparência pública auditável.",
+      "requirePhone": false,
+      "requireCity": false,
+      "maxParticipants": 500,
+      "codeExpirationMinutes": 10,
+      "soundEnabledByDefault": true,
+      "adminPin": "1234",
+      "announcementBanner": "🎉 Grande Sorteio Oficial em Andamento! Cadastre-se e acompanhe os resultados ao vivo.",
+      "showAnnouncement": true
+    }
   },
   "participants": [
     {

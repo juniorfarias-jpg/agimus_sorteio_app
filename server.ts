@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import QRCode from 'qrcode';
 import { createServer as createViteServer } from 'vite';
-import { Participant, Prize, Raffle, Winner } from './src/types.ts';
+import { AppSettings, Participant, Prize, Raffle, Winner } from './src/types.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,12 +44,27 @@ function maskEmail(email: string): string {
   return `${name.slice(0, 2)}***${name.slice(-1)}@${domain}`;
 }
 
+const defaultSettings: AppSettings = {
+  organizerName: 'Comissão Organizadora Oficial',
+  contactEmail: 'suporte@sorteiolive.com',
+  contactPhone: '(11) 98765-4321',
+  rulesText: '1. Cada participante tem direito a 1 (um) único bilhete validado por e-mail.\n2. O QR Code gerado é o comprovante oficial de participação.\n3. O sorteio é realizado ao vivo com transparência pública auditável.',
+  requirePhone: false,
+  requireCity: false,
+  maxParticipants: 0, // 0 = sem limite
+  codeExpirationMinutes: 10,
+  soundEnabledByDefault: true,
+  adminPin: '1234',
+  announcementBanner: '🎉 Grande Sorteio Oficial em Andamento! Cadastre-se e acompanhe os resultados ao vivo.',
+  showAnnouncement: true,
+};
+
 const defaultPrizes: Prize[] = [
-  { id: 'prize-1', rank: 1, title: 'MacBook Air M3 / Notebook Gamer Ultra', description: 'Computador de alta performance para trabalho e jogos' },
-  { id: 'prize-2', rank: 2, title: 'PlayStation 5 Pro + 2 Controles', description: 'Console de última geração com kit de jogos' },
-  { id: 'prize-3', rank: 3, title: 'iPhone 16 Pro Max 256GB', description: 'Smartphone topo de linha com câmera profissional' },
-  { id: 'prize-4', rank: 4, title: 'Smart TV 65" 4K QLED', description: 'Cinema em casa com som Dolby Atmos' },
-  { id: 'prize-5', rank: 5, title: 'Vale-Compras de R$ 1.500,00', description: 'Crédito livre para compras online' },
+  { id: 'prize-1', rank: 1, title: 'MacBook Air M3 / Notebook Gamer Ultra', description: 'Computador de alta performance para trabalho e jogos', estimatedValue: 'R$ 9.500,00' },
+  { id: 'prize-2', rank: 2, title: 'PlayStation 5 Pro + 2 Controles', description: 'Console de última geração com kit de jogos', estimatedValue: 'R$ 5.800,00' },
+  { id: 'prize-3', rank: 3, title: 'iPhone 16 Pro Max 256GB', description: 'Smartphone topo de linha com câmera profissional', estimatedValue: 'R$ 8.900,00' },
+  { id: 'prize-4', rank: 4, title: 'Smart TV 65" 4K QLED', description: 'Cinema em casa com som Dolby Atmos', estimatedValue: 'R$ 4.200,00' },
+  { id: 'prize-5', rank: 5, title: 'Vale-Compras de R$ 1.500,00', description: 'Crédito livre para compras online', estimatedValue: 'R$ 1.500,00' },
 ];
 
 const initialRaffle: Raffle = {
@@ -61,9 +76,10 @@ const initialRaffle: Raffle = {
   allowRegistrations: true,
   createdAt: new Date().toISOString(),
   winners: [],
+  settings: defaultSettings,
 };
 
-const initialParticipants: Participant[] = [
+const sampleSeedParticipants: Participant[] = [
   {
     id: 'part-001',
     raffleId: 'raffle-2026-01',
@@ -129,6 +145,11 @@ function loadDatabase(): DBData {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       if (parsed.raffle && Array.isArray(parsed.participants)) {
+        if (!parsed.raffle.settings) {
+          parsed.raffle.settings = defaultSettings;
+        } else {
+          parsed.raffle.settings = { ...defaultSettings, ...parsed.raffle.settings };
+        }
         return parsed;
       }
     }
@@ -137,7 +158,7 @@ function loadDatabase(): DBData {
   }
   const initialData: DBData = {
     raffle: initialRaffle,
-    participants: initialParticipants,
+    participants: sampleSeedParticipants,
     verificationCodes: [],
     emailLog: [],
   };
@@ -260,6 +281,14 @@ async function startServer() {
       return res.status(400).json({ error: 'As inscrições para este sorteio estão encerradas no momento.' });
     }
 
+    // Check maximum participants limit configured in settings
+    const maxP = db.raffle.settings?.maxParticipants || 0;
+    if (maxP > 0 && db.participants.length >= maxP) {
+      return res.status(400).json({
+        error: `O limite máximo configurado de ${maxP} inscrições foi atingido para este sorteio.`,
+      });
+    }
+
     // CHECK UNICITY: Is this email already registered?
     const alreadyExists = db.participants.find(
       (p) => p.email.toLowerCase() === cleanEmail && (!raffleId || p.raffleId === db.raffle.id)
@@ -275,7 +304,8 @@ async function startServer() {
 
     // Generate 6-digit random code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const expMin = db.raffle.settings?.codeExpirationMinutes || 10;
+    const expiresAt = Date.now() + expMin * 60 * 1000;
 
     // Remove older codes for this email
     db.verificationCodes = db.verificationCodes.filter((v) => v.email !== cleanEmail);
@@ -297,7 +327,7 @@ async function startServer() {
       success: true,
       message: 'Código de verificação gerado e enviado com sucesso!',
       email: cleanEmail,
-      expiresInMinutes: 10,
+      expiresInMinutes: expMin,
       simulatedDelivery: {
         email: cleanEmail,
         code,
@@ -325,6 +355,14 @@ async function startServer() {
 
       if (!db.raffle.allowRegistrations || db.raffle.status === 'completed') {
         return res.status(400).json({ error: 'Inscrições encerradas para este sorteio.' });
+      }
+
+      // Check required fields based on settings
+      if (db.raffle.settings?.requirePhone && (!phone || !String(phone).trim())) {
+        return res.status(400).json({ error: 'O telefone/WhatsApp é obrigatório de acordo com as configurações do sorteio.' });
+      }
+      if (db.raffle.settings?.requireCity && (!city || !String(city).trim())) {
+        return res.status(400).json({ error: 'A cidade/estado é obrigatória de acordo com as configurações do sorteio.' });
       }
 
       // 1. Strict duplicate check
@@ -434,7 +472,42 @@ async function startServer() {
     });
   });
 
-  // Admin APIs
+  // ================= ADMIN & CONFIGURATION ENDPOINTS =================
+
+  // POST /api/admin/save-config (Configure EVERYTHING about the raffle)
+  app.post('/api/admin/save-config', (req: Request, res: Response) => {
+    const { title, description, allowRegistrations, prizes, settings } = req.body;
+
+    if (title && typeof title === 'string') {
+      db.raffle.title = title.trim();
+    }
+    if (description !== undefined && typeof description === 'string') {
+      db.raffle.description = description.trim();
+    }
+    if (typeof allowRegistrations === 'boolean') {
+      db.raffle.allowRegistrations = allowRegistrations;
+    }
+    if (Array.isArray(prizes)) {
+      db.raffle.prizes = prizes;
+    }
+    if (settings && typeof settings === 'object') {
+      db.raffle.settings = {
+        ...defaultSettings,
+        ...(db.raffle.settings || {}),
+        ...settings,
+      };
+    }
+
+    saveDatabase();
+    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+
+    res.json({
+      success: true,
+      message: 'Configurações do aplicativo salvas com sucesso!',
+      raffle: db.raffle,
+    });
+  });
+
   // POST /api/admin/start-draw-animation
   app.post('/api/admin/start-draw-animation', (req: Request, res: Response) => {
     const { prizeId } = req.body;
@@ -524,19 +597,6 @@ async function startServer() {
     res.json({ success: true, allowRegistrations: db.raffle.allowRegistrations });
   });
 
-  // POST /api/admin/update-raffle
-  app.post('/api/admin/update-raffle', (req: Request, res: Response) => {
-    const { title, description, prizes } = req.body;
-    if (title) db.raffle.title = title;
-    if (description !== undefined) db.raffle.description = description;
-    if (Array.isArray(prizes)) db.raffle.prizes = prizes;
-
-    saveDatabase();
-    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
-
-    res.json({ success: true, raffle: db.raffle });
-  });
-
   // POST /api/admin/reset-winners
   app.post('/api/admin/reset-winners', (req: Request, res: Response) => {
     db.raffle.winners = [];
@@ -545,6 +605,54 @@ async function startServer() {
 
     broadcastSSE('WINNERS_RESET', { raffle: db.raffle });
     res.json({ success: true, message: 'Ganhadores reiniciados com sucesso.' });
+  });
+
+  // POST /api/admin/delete-participant
+  app.post('/api/admin/delete-participant', (req: Request, res: Response) => {
+    const { id, ticketNumber } = req.body;
+    const prevCount = db.participants.length;
+
+    db.participants = db.participants.filter(
+      (p) => p.id !== id && p.ticketNumber !== ticketNumber
+    );
+
+    // Also remove from winners if won
+    db.raffle.winners = db.raffle.winners.filter(
+      (w) => w.participantId !== id && w.ticketNumber !== ticketNumber
+    );
+
+    saveDatabase();
+    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+
+    res.json({
+      success: true,
+      removed: prevCount - db.participants.length,
+      currentCount: db.participants.length,
+    });
+  });
+
+  // POST /api/admin/clear-all-participants
+  app.post('/api/admin/clear-all-participants', (req: Request, res: Response) => {
+    db.participants = [];
+    db.raffle.winners = [];
+    db.raffle.status = 'open';
+    saveDatabase();
+
+    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+    res.json({ success: true, message: 'Todos os participantes e ganhadores foram limpos.' });
+  });
+
+  // POST /api/admin/seed-participants
+  app.post('/api/admin/seed-participants', (req: Request, res: Response) => {
+    // Add sample participants
+    for (const sample of sampleSeedParticipants) {
+      if (!db.participants.some((p) => p.email === sample.email)) {
+        db.participants.push({ ...sample, registeredAt: new Date().toISOString() });
+      }
+    }
+    saveDatabase();
+    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+    res.json({ success: true, count: db.participants.length });
   });
 
   // GET /api/admin/recent-emails
