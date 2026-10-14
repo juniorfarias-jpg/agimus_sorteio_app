@@ -9,7 +9,9 @@ import { Participant, Prize, Raffle, Winner } from './types.ts';
 import { MobileJoinQRModal } from './components/MobileJoinQRModal.tsx';
 import { PrintableQRPosterModal } from './components/PrintableQRPosterModal.tsx';
 import { ParticipantPortal } from './components/ParticipantPortal.tsx';
-import { Settings, Gift, Sparkles, Printer } from 'lucide-react';
+import { AdminAuthModal } from './components/AdminAuthModal.tsx';
+import { getThemeStyles } from './utils/theme.tsx';
+import { Settings, Lock, Sparkles, Printer, ShieldCheck } from 'lucide-react';
 
 const fallbackRaffle: Raffle = {
   id: 'raffle-2026-01',
@@ -30,7 +32,8 @@ const fallbackRaffle: Raffle = {
     organizerName: 'Comissão Organizadora Oficial',
     contactEmail: 'suporte@sorteiolive.com',
     contactPhone: '(11) 98765-4321',
-    rulesText: '1. Cada participante tem direito a 1 (um) único bilhete validado por e-mail.\n2. O QR Code gerado é o comprovante oficial de participação.\n3. O sorteio é realizado ao vivo com transparência pública auditável.',
+    rulesText: '1. Cada participante tem direito a 1 (um) único bilhete numerado.\n2. O sorteio é realizado ao vivo com transparência pública auditável.\n3. O contemplado receberá a confirmação através dos dados cadastrados.',
+    rulesTitle: 'Regulamento do Sorteio',
     requirePhone: false,
     requireCity: false,
     maxParticipants: 0,
@@ -39,16 +42,50 @@ const fallbackRaffle: Raffle = {
     adminPin: '1234',
     announcementBanner: '🎉 Grande Sorteio Oficial em Andamento! Cadastre-se e acompanhe os resultados ao vivo.',
     showAnnouncement: true,
+
+    // Logo
+    logoUrl: '',
+    logoText: 'Sorteio',
+    showLogo: true,
+
+    // Theme Background Colors
+    themePreset: 'dark-slate',
+    themeBgColorPrimary: '#020617',
+    themeBgColorSecondary: '#0f172a',
+    themeBgStyle: 'linear-to-b',
+    themeTextColor: 'light',
+
+    // Visibility
+    showFormBadge: true,
+    showFormDescription: true,
+    showPrizesPreview: true,
+    showInfoIndicators: true,
+    showCardTag: true,
+    showRulesSection: true,
+    showCheckTicketLink: true,
+
+    // Restricted Access: Only admin has access to the whole app
+    onlyAdminAccessAll: true,
   },
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal'>('live');
+  // Default to registration form for all participants
+  const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal'>('register');
   const [raffle, setRaffle] = useState<Raffle>(fallbackRaffle);
   const [participants, setParticipants] = useState<
     Array<{ id: string; ticketNumber: string; name: string; email?: string; emailMasked: string; phone?: string; city: string; registeredAt: string }>
   >([]);
   const [participantCount, setParticipantCount] = useState(0);
+
+  // Admin authentication state
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sorteio_admin_auth') === 'true';
+    }
+    return false;
+  });
+  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
 
   // Active draw suspense states
   const [isDrawingActive, setIsDrawingActive] = useState(false);
@@ -89,23 +126,48 @@ export default function App() {
     }
   }, []);
 
+  // Safe tab switcher that enforces: "só o administrador tem acesso às informações de todo o aplicativo"
+  const handleSelectTab = (tab: 'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal') => {
+    const isRestrictedTab = tab === 'admin' || tab === 'live' || tab === 'stage';
+    const isRestrictedMode = raffle.settings?.onlyAdminAccessAll !== false;
+
+    if (isRestrictedTab && isRestrictedMode && !isAdmin) {
+      setIsAdminAuthModalOpen(true);
+      return;
+    }
+
+    setActiveTab(tab);
+  };
+
+  const handleAdminLogout = () => {
+    localStorage.removeItem('sorteio_admin_auth');
+    setIsAdmin(false);
+    setActiveTab('register');
+    setShortcutToast('Sessão do Administrador encerrada. Acesso restrito ativo.');
+    setTimeout(() => setShortcutToast(null), 3000);
+  };
+
   // Global Keyboard Shortcut: "Alt" + "c"
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && (e.key === 'c' || e.key === 'C' || e.code === 'KeyC')) {
         e.preventDefault();
-        setActiveTab((prev) => {
-          const next = prev === 'admin' ? 'live' : 'admin';
-          setShortcutToast(next === 'admin' ? 'Abrindo Painel Admin (Alt + C)' : 'Voltando à Tela Principal (Alt + C)');
-          setTimeout(() => setShortcutToast(null), 2500);
-          return next;
-        });
+        if (!isAdmin) {
+          setIsAdminAuthModalOpen(true);
+        } else {
+          setActiveTab((prev) => {
+            const next = prev === 'admin' ? 'register' : 'admin';
+            setShortcutToast(next === 'admin' ? 'Abrindo Painel Admin (Alt + C)' : 'Voltando ao Formulário (Alt + C)');
+            setTimeout(() => setShortcutToast(null), 2500);
+            return next;
+          });
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAdmin]);
 
   // Parse URL search params
   useEffect(() => {
@@ -114,17 +176,19 @@ export default function App() {
     const tabParam = params.get('tab');
     const portalParam = params.get('portal');
 
-    if (portalParam === 'participante' || tabParam === 'portal') {
-      setActiveTab('portal');
-    } else if (ticketParam) {
+    if (ticketParam) {
       setUrlTicket(ticketParam);
-      setActiveTab('live');
-    } else if (tabParam === 'register') {
-      setActiveTab('portal');
-    } else if (tabParam === 'lookup') {
+      setSelectedLookupTicket(ticketParam);
       setActiveTab('lookup');
     } else if (tabParam === 'admin') {
-      setActiveTab('admin');
+      if (localStorage.getItem('sorteio_admin_auth') === 'true') {
+        setIsAdmin(true);
+        setActiveTab('admin');
+      } else {
+        setIsAdminAuthModalOpen(true);
+      }
+    } else if (portalParam === 'participante' || tabParam === 'register' || tabParam === 'portal') {
+      setActiveTab('register');
     }
   }, []);
 
@@ -132,17 +196,14 @@ export default function App() {
   useEffect(() => {
     fetchState();
 
-    // 4-second short polling ensures reliable real-time updates across any proxy
     const pollInterval = setInterval(fetchState, 4000);
 
-    // Setup SSE connection with defensive error handling
     let eventSource: EventSource | null = null;
     try {
       if (typeof window !== 'undefined' && 'EventSource' in window) {
         eventSource = new EventSource('/api/events');
 
         eventSource.onerror = () => {
-          // Gracefully fallback to polling without locking the UI
           eventSource?.close();
           eventSource = null;
         };
@@ -229,8 +290,11 @@ export default function App() {
     setActiveTab('lookup');
   };
 
-  // Fullscreen Stage View
-  if (activeTab === 'stage') {
+  // Get theme styling (Background colors)
+  const theme = getThemeStyles(raffle.settings);
+
+  // Fullscreen Stage View (Only for admin)
+  if (activeTab === 'stage' && isAdmin) {
     return (
       <StageMode
         raffle={raffle}
@@ -239,14 +303,17 @@ export default function App() {
         isDrawingActive={isDrawingActive}
         drawingPrize={drawingPrize}
         latestWinner={latestWinner}
-        onExit={() => setActiveTab('live')}
+        onExit={() => setActiveTab('admin')}
         onRefresh={fetchState}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div
+      className={`min-h-screen ${theme.textColorClass} flex flex-col font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-500`}
+      style={theme.style}
+    >
       {/* Toast alert on keyboard shortcut */}
       {shortcutToast && (
         <div className="fixed top-20 right-6 z-50 bg-indigo-600 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border border-indigo-400/40 animate-bounce">
@@ -255,43 +322,33 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Navigation */}
-      {activeTab === 'portal' ? (
-        <header className="border-b border-slate-900 bg-slate-950/95 backdrop-blur-md sticky top-0 z-40">
-          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-rose-500 flex items-center justify-center shadow-md">
-                <Gift className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <span className="font-extrabold text-sm text-white block leading-tight">SorteioLive</span>
-                <span className="text-[10px] text-emerald-400 font-bold block">Inscrição para o Sorteio</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setActiveTab('live')}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              Ver Ao Vivo
-            </button>
-          </div>
-        </header>
-      ) : (
-        <Navbar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          participantCount={participantCount}
-          raffle={raffle}
-          onOpenMobileQR={() => setIsMobileQRModalOpen(true)}
-          onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
-        />
-      )}
+      {/* Main Navigation Bar */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={handleSelectTab}
+        participantCount={participantCount}
+        raffle={raffle}
+        onOpenMobileQR={() => setIsMobileQRModalOpen(true)}
+        onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
+        isAdmin={isAdmin}
+        onOpenAdminAuth={() => setIsAdminAuthModalOpen(true)}
+        onAdminLogout={handleAdminLogout}
+      />
 
       {/* Main Content View */}
       <main className="flex-1 pb-16">
-        {activeTab === 'live' && (
+        {/* PUBLIC DEFAULT VIEW: Registration Form */}
+        {(activeTab === 'register' || activeTab === 'portal') && (
+          <RegistrationForm
+            raffle={raffle}
+            onRegistered={handleRegistered}
+            onViewExistingTicket={handleViewTicket}
+            onGoToLive={() => handleSelectTab('live')}
+          />
+        )}
+
+        {/* ADMIN VIEWS: Protected and accessed only by the administrator */}
+        {activeTab === 'live' && isAdmin && (
           <LiveDrawScreen
             raffle={raffle}
             participants={participants}
@@ -308,34 +365,37 @@ export default function App() {
           />
         )}
 
-        {(activeTab === 'register' || activeTab === 'portal') && (
-          <ParticipantPortal
-            raffle={raffle}
-            onRegistered={handleRegistered}
-            onViewExistingTicket={handleViewTicket}
-            onGoToLive={() => setActiveTab('live')}
-          />
-        )}
-
         {activeTab === 'lookup' && (
           <TicketLookup
             initialTicket={selectedLookupTicket || urlTicket || ''}
-            onGoToLive={() => setActiveTab('live')}
+            onGoToLive={() => handleSelectTab('live')}
           />
         )}
 
-        {activeTab === 'admin' && (
+        {activeTab === 'admin' && isAdmin && (
           <AdminPanel
             raffle={raffle}
             participants={participants}
             onViewTicket={handleViewTicket}
             onRefreshState={fetchState}
-            onClose={() => setActiveTab('live')}
+            onClose={() => setActiveTab('register')}
             serverPublicUrl={serverPublicUrl}
             onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
           />
         )}
       </main>
+
+      {/* Admin Authentication Modal (PIN) */}
+      <AdminAuthModal
+        isOpen={isAdminAuthModalOpen}
+        onClose={() => setIsAdminAuthModalOpen(false)}
+        onSuccess={() => {
+          setIsAdmin(true);
+          setActiveTab('admin');
+          setShortcutToast('Bem-vindo, Administrador! Acesso Liberado.');
+          setTimeout(() => setShortcutToast(null), 3000);
+        }}
+      />
 
       {/* Mobile QR Modal */}
       <MobileJoinQRModal
@@ -355,15 +415,32 @@ export default function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-900/60 bg-slate-950/80 backdrop-blur-md py-6 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 SorteioLive • {raffle.settings?.organizerName || 'Sistema Seguro de Sorteios com Validação Única & QR Code'}</p>
+          <p>
+            © 2026 {raffle.settings?.logoText || 'Sorteio'} • {raffle.settings?.organizerName || 'Sistema Oficial de Sorteios com Validação'}
+          </p>
           <div className="flex items-center gap-3 text-slate-400">
-            <span>Inscrição Direta</span>
+            <span>Inscrição Oficial</span>
             <span>•</span>
-            <span>QR Code Oficial</span>
+            <span>QR Code no Papel</span>
             <span>•</span>
-            <span>Transparência Pública Auditável</span>
+            {isAdmin ? (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className="text-amber-400 font-bold hover:underline"
+              >
+                Painel do Administrador
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAdminAuthModalOpen(true)}
+                className="text-indigo-400 hover:text-white flex items-center gap-1 font-semibold"
+              >
+                <Lock className="w-3 h-3 text-amber-400" />
+                Acesso do Administrador
+              </button>
+            )}
           </div>
         </div>
       </footer>

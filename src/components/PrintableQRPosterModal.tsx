@@ -114,8 +114,17 @@ export const PrintableQRPosterModal: React.FC<PrintableQRPosterModalProps> = ({
           ref={printAreaRef}
           className="bg-white text-slate-900 rounded-2xl p-6 sm:p-8 border-2 border-slate-200 shadow-md print:border-none print:shadow-none print:p-0"
         >
-          {/* Header of the Poster */}
+          {/* Header of the Poster with Custom Logo */}
           <div className="text-center pb-5 border-b-2 border-dashed border-slate-200">
+            {raffle.settings?.logoUrl && (
+              <div className="mb-3 flex justify-center">
+                <img
+                  src={raffle.settings.logoUrl}
+                  alt={raffle.settings?.logoText || 'Logo'}
+                  className="max-h-16 max-w-[220px] object-contain"
+                />
+              </div>
+            )}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 uppercase tracking-widest mb-3">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               {raffle.settings?.formBadgeText || 'Inscrição Oficial para o Sorteio'}

@@ -79,6 +79,29 @@ const defaultSettings: AppSettings = {
   showCheckTicketLink: true,
   checkTicketText: 'Consultar meu bilhete',
   customPublicUrl: '',
+
+  // Personalização de Logo (Onde está escrito Sorteio)
+  logoUrl: '',
+  logoText: 'Sorteio',
+  showLogo: true,
+
+  // Personalização das Cores de Fundo (Background Colors)
+  themePreset: 'dark-slate',
+  themeBgColorPrimary: '#020617',
+  themeBgColorSecondary: '#0f172a',
+  themeBgStyle: 'linear-to-b',
+  themeTextColor: 'light',
+
+  // Controle de Exibição / Remoção de Elementos ("Remover isto que esta selecionado")
+  showFormBadge: true,
+  showFormDescription: true,
+  showPrizesPreview: true,
+  showInfoIndicators: true,
+  showCardTag: true,
+  showRulesSection: true,
+
+  // Controle de Acesso Restrito ("Só o administrador tem acesso às informações de todo o aplicativo")
+  onlyAdminAccessAll: true,
 };
 
 const defaultPrizes: Prize[] = [
@@ -228,7 +251,8 @@ async function generateTicketQR(ticketNumber: string, email: string, baseUrl: st
 
 async function startServer() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '20mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
   // CORS middleware to support iframe and cross-origin requests in preview environment
   app.use((req: Request, res: Response, next) => {
@@ -548,6 +572,16 @@ async function startServer() {
   });
 
   // ================= ADMIN & CONFIGURATION ENDPOINTS =================
+  
+  // POST /api/admin/verify-pin
+  app.post('/api/admin/verify-pin', (req: Request, res: Response) => {
+    const { pin } = req.body;
+    const currentPin = db.raffle.settings?.adminPin || '1234';
+    if (String(pin).trim() === String(currentPin).trim()) {
+      return res.json({ success: true, authorized: true });
+    }
+    return res.status(401).json({ success: false, error: 'PIN de Administrador incorreto. Verifique e tente novamente.' });
+  });
 
   // POST /api/admin/save-config (Configure EVERYTHING about the raffle)
   app.post('/api/admin/save-config', (req: Request, res: Response) => {

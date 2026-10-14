@@ -65,6 +65,29 @@ export interface AppSettings {
   showCheckTicketLink?: boolean;
   checkTicketText?: string;
   customPublicUrl?: string;
+
+  // Personalização de Logo (Onde está escrito Sorteio)
+  logoUrl?: string;
+  logoText?: string;
+  showLogo?: boolean;
+
+  // Personalização das Cores de Fundo (Background Colors)
+  themePreset?: string;
+  themeBgColorPrimary?: string;
+  themeBgColorSecondary?: string;
+  themeBgStyle?: 'solid' | 'linear-to-b' | 'linear-to-br' | 'radial';
+  themeTextColor?: 'light' | 'dark' | 'auto';
+
+  // Controle de Exibição / Remoção de Elementos ("Remover isto que esta selecionado")
+  showFormBadge?: boolean;
+  showFormDescription?: boolean;
+  showPrizesPreview?: boolean;
+  showInfoIndicators?: boolean;
+  showCardTag?: boolean;
+  showRulesSection?: boolean;
+
+  // Controle de Acesso Restrito ("Só o administrador tem acesso às informações de todo o aplicativo")
+  onlyAdminAccessAll?: boolean;
 }
 
 export interface Raffle {

@@ -73,13 +73,17 @@ export const StageMode: React.FC<StageModeProps> = ({
       {/* Top stage bar */}
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
-            <Gift className="w-6 h-6 text-white" />
-          </div>
+          {raffle.settings?.logoUrl ? (
+            <img src={raffle.settings.logoUrl} alt="Logo" className="h-12 max-w-[180px] object-contain rounded-xl shadow-lg border border-white/10" />
+          ) : (
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
+              <Gift className="w-6 h-6 text-white" />
+            </div>
+          )}
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{raffle.title}</h1>
             <p className="text-xs text-amber-300 font-semibold uppercase tracking-wider">
-              Transmissão Oficial de Apuração • Ao Vivo
+              {raffle.settings?.logoText || 'Sorteio Oficial'} • Transmissão de Apuração Ao Vivo
             </p>
           </div>
         </div>

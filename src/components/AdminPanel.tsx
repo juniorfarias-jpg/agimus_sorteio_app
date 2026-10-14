@@ -31,10 +31,16 @@ import {
   FileDown,
   Printer,
   Smartphone,
+  Palette,
+  Image as ImageIcon,
+  Upload,
+  Eye,
+  Check,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { AppSettings, Prize, Raffle } from '../types.ts';
 import { exportParticipantsPDF, exportWinnersPDF } from '../utils/pdfExport.ts';
+import { THEME_PRESETS, AppLogo, getThemeStyles } from '../utils/theme.tsx';
 
 interface AdminPanelProps {
   raffle: Raffle;
@@ -86,7 +92,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenPrintPoster,
 }) => {
   // Navigation inside Admin Panel
-  const [adminTab, setAdminTab] = useState<'draw' | 'form' | 'poster' | 'settings' | 'prizes' | 'rules' | 'participants' | 'audit'>('draw');
+  const [adminTab, setAdminTab] = useState<'draw' | 'theme' | 'form' | 'poster' | 'settings' | 'prizes' | 'rules' | 'participants' | 'audit'>('draw');
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setActionError('A imagem do logo deve ter no máximo 8MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setSettings((prev) => ({ ...prev, logoUrl: base64 }));
+      setActionSuccess('Logo carregado com sucesso! Clique em "Salvar Alterações" para aplicar em todo o aplicativo.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSelectThemePreset = (presetId: string) => {
+    const preset = THEME_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setSettings((prev) => ({
+      ...prev,
+      themePreset: preset.id,
+      themeBgColorPrimary: preset.primary,
+      themeBgColorSecondary: preset.secondary,
+      themeBgStyle: preset.style,
+      themeTextColor: preset.isLight ? 'dark' : 'light',
+    }));
+    setActionSuccess(`Tema de cores "${preset.name}" selecionado! Clique em Salvar para gravar.`);
+  };
 
   // Form states for general configuration
   const [title, setTitle] = useState(raffle.title);
@@ -484,6 +520,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
+          onClick={() => setAdminTab('theme')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+            adminTab === 'theme'
+              ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white shadow-md font-bold'
+              : 'text-amber-300 hover:text-white hover:bg-slate-800 border border-amber-500/30'
+          }`}
+        >
+          <Palette className="w-3.5 h-3.5 text-amber-300" />
+          🎨 Logo & Cores de Fundo
+        </button>
+
+        <button
           onClick={() => setAdminTab('form')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
             adminTab === 'form'
@@ -741,6 +789,423 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* ================= TAB: LOGO & CORES DE FUNDO & ACESSO RESTRITO ================= */}
+      {adminTab === 'theme' && (
+        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-8 animate-fade-in">
+          <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-1.5">
+                <Palette className="w-3.5 h-3.5" />
+                Identidade Visual & Controle de Acesso
+              </div>
+              <h2 className="text-xl font-black text-white">Logo da Marca, Cores de Fundo & Acesso</h2>
+              <p className="text-xs text-slate-400">
+                Personalize o logo onde está escrito Sorteio, mude as cores de fundo do aplicativo e controle a privacidade da base.
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={loadingAction}
+              className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-black text-xs shadow-md transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+            >
+              Salvar Alterações
+            </button>
+          </div>
+
+          {/* Section 1: Logo da Marca (Onde está escrito Sorteio) */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <ImageIcon className="w-4 h-4 text-amber-400" />
+              1. Logo da Marca (Onde está escrito Sorteio)
+            </h3>
+
+            {/* Live Preview of Current Logo */}
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-slate-400 block mb-2">Visualização Atual no Aplicativo:</span>
+                <AppLogo
+                  logoUrl={settings.logoUrl}
+                  logoText={settings.logoText || 'Sorteio'}
+                  size="md"
+                  subtitle={settings.organizerName}
+                />
+              </div>
+
+              {settings.logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettings({ ...settings, logoUrl: '' });
+                    setActionSuccess('Logo removido. Voltou ao ícone padrão.');
+                  }}
+                  className="py-1.5 px-3 rounded-xl border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-950/40 text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  Remover Logo Personalizado
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">
+                  Carregar Arquivo de Imagem do Logo:
+                </label>
+                <label className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border-2 border-dashed border-indigo-500/50 text-indigo-200 hover:text-white font-bold text-xs cursor-pointer shadow-md transition-all">
+                  <Upload className="w-4 h-4 text-amber-300" />
+                  <span>Escolher Imagem (PNG, JPG, SVG, WebP)</span>
+                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                </label>
+                <p className="text-[10px] text-slate-400 mt-1.5">
+                  A imagem é convertida e gravada diretamente na base de dados para sincronizar em todos os telemóveis.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">
+                  Ou Informe o Link / URL da Imagem do Logo:
+                </label>
+                <input
+                  type="url"
+                  value={settings.logoUrl || ''}
+                  onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                  placeholder="https://sua-empresa.com/logo.png"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-amber-500 font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1.5">
+                  Link direto para a imagem do seu logo na internet.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Nome / Texto da Marca (Onde está escrito "Sorteio")
+                </label>
+                <input
+                  type="text"
+                  value={settings.logoText || ''}
+                  onChange={(e) => setSettings({ ...settings, logoText: e.target.value })}
+                  placeholder="Sorteio"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-amber-500 font-bold"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Texto que aparece ao lado ou abaixo do logo (padrão: Sorteio).
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                <div>
+                  <span className="text-xs font-bold text-white block">Exibir Logo</span>
+                  <p className="text-[11px] text-slate-400">Mostrar o logo no cabeçalho e formulário.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showLogo: settings.showLogo === false })}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors cursor-pointer ${
+                    settings.showLogo !== false
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  {settings.showLogo !== false ? 'Ativo' : 'Oculto'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Cores de Fundo do Aplicativo */}
+          <div className="space-y-4 pt-4 border-t border-slate-800">
+            <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <Palette className="w-4 h-4 text-amber-400" />
+              2. Cores de Fundo do Aplicativo (Background Colors)
+            </h3>
+            <p className="text-xs text-slate-300">
+              Escolha uma das paletas predefinidas ou selecione cores personalizadas para o fundo do formulário e de todas as telas.
+            </p>
+
+            {/* Presets Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              {THEME_PRESETS.map((preset) => {
+                const isActive = (settings.themePreset || 'dark-slate') === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleSelectThemePreset(preset.id)}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      isActive
+                        ? 'border-amber-400 bg-slate-800 ring-2 ring-amber-400/40 shadow-lg'
+                        : 'border-slate-800 bg-slate-950/80 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center -space-x-1">
+                        <span
+                          className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                          style={{ backgroundColor: preset.primary }}
+                        />
+                        <span
+                          className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                          style={{ backgroundColor: preset.secondary }}
+                        />
+                      </div>
+                      {isActive && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                    </div>
+                    <span className="text-[11px] font-bold text-white leading-tight block">{preset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom Color Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-950 rounded-2xl border border-slate-800">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Cor Primária de Fundo
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.themeBgColorPrimary || '#020617'}
+                    onChange={(e) =>
+                      setSettings({ ...settings, themePreset: 'custom', themeBgColorPrimary: e.target.value })
+                    }
+                    className="w-9 h-9 rounded-lg bg-transparent border border-slate-700 cursor-pointer p-0"
+                  />
+                  <input
+                    type="text"
+                    value={settings.themeBgColorPrimary || '#020617'}
+                    onChange={(e) =>
+                      setSettings({ ...settings, themePreset: 'custom', themeBgColorPrimary: e.target.value })
+                    }
+                    className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Cor Secundária (Degradê)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.themeBgColorSecondary || '#0f172a'}
+                    onChange={(e) =>
+                      setSettings({ ...settings, themePreset: 'custom', themeBgColorSecondary: e.target.value })
+                    }
+                    className="w-9 h-9 rounded-lg bg-transparent border border-slate-700 cursor-pointer p-0"
+                  />
+                  <input
+                    type="text"
+                    value={settings.themeBgColorSecondary || '#0f172a'}
+                    onChange={(e) =>
+                      setSettings({ ...settings, themePreset: 'custom', themeBgColorSecondary: e.target.value })
+                    }
+                    className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Estilo do Fundo
+                </label>
+                <select
+                  value={settings.themeBgStyle || 'linear-to-b'}
+                  onChange={(e) =>
+                    setSettings({ ...settings, themePreset: 'custom', themeBgStyle: e.target.value as any })
+                  }
+                  className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2.5 text-xs outline-none"
+                >
+                  <option value="linear-to-b">Degradê Vertical</option>
+                  <option value="linear-to-br">Degradê Diagonal</option>
+                  <option value="radial">Degradê Radial (Centro)</option>
+                  <option value="solid">Cor Sólida Única</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Contraste do Texto
+                </label>
+                <select
+                  value={settings.themeTextColor || 'light'}
+                  onChange={(e) =>
+                    setSettings({ ...settings, themeTextColor: e.target.value as any })
+                  }
+                  className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2.5 text-xs outline-none"
+                >
+                  <option value="light">Texto Claro (para fundos escuros)</option>
+                  <option value="dark">Texto Escuro (para fundos claros/brancos)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Acesso Restrito ao Administrador */}
+          <div className="space-y-4 pt-4 border-t border-slate-800">
+            <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <Lock className="w-4 h-4 text-amber-400" />
+              3. Privacidade & Controle de Acesso Restrito
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    Só o Administrador tem Acesso a Todo o Aplicativo
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Participantes veem apenas o formulário. Roleta, telão e lista só abrem com PIN.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSettings({ ...settings, onlyAdminAccessAll: settings.onlyAdminAccessAll === false })
+                  }
+                  className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors cursor-pointer shrink-0 ml-3 ${
+                    settings.onlyAdminAccessAll !== false
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  {settings.onlyAdminAccessAll !== false ? 'Restrito (Ativo)' : 'Público'}
+                </button>
+              </div>
+
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                <label className="block text-xs font-bold text-white uppercase mb-1 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                  PIN de Segurança do Administrador:
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={settings.adminPin || ''}
+                    onChange={(e) => setSettings({ ...settings, adminPin: e.target.value })}
+                    placeholder="1234"
+                    className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-2 text-xs font-mono tracking-widest outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1">Usado no botão "Admin (PIN)" no cabeçalho.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Remover Elementos do Formulário ("Remover isto que está selecionado") */}
+          <div className="space-y-4 pt-4 border-t border-slate-800">
+            <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <Eye className="w-4 h-4 text-rose-400" />
+              4. Ocultar / Remover Elementos do Formulário ("Remover isto que está selecionado")
+            </h3>
+            <p className="text-xs text-slate-300">
+              Desative qualquer um dos blocos abaixo para removê-lo da tela de inscrição do participante:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Toggle Selo Superior */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-200">Selo Superior (Inscrição Oficial)</span>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showFormBadge: settings.showFormBadge === false })}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    settings.showFormBadge !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}
+                >
+                  {settings.showFormBadge !== false ? 'Exibido' : 'Removido'}
+                </button>
+              </div>
+
+              {/* Toggle Descrição */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-200">Descrição do Sorteio</span>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showFormDescription: settings.showFormDescription === false })}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    settings.showFormDescription !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}
+                >
+                  {settings.showFormDescription !== false ? 'Exibido' : 'Removido'}
+                </button>
+              </div>
+
+              {/* Toggle Prêmios em Disputa */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-200">Bloco de Prêmios em Disputa</span>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showPrizesPreview: settings.showPrizesPreview === false })}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    settings.showPrizesPreview !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}
+                >
+                  {settings.showPrizesPreview !== false ? 'Exibido' : 'Removido'}
+                </button>
+              </div>
+
+              {/* Toggle Indicadores 1 Inscrição, Bilhete Numerado, etc. */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-200">Indicadores (Bilhete Numerado, etc.)</span>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showInfoIndicators: settings.showInfoIndicators === false })}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    settings.showInfoIndicators !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}
+                >
+                  {settings.showInfoIndicators !== false ? 'Exibido' : 'Removido'}
+                </button>
+              </div>
+
+              {/* Toggle Tag Inscrição Direta */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-200">Tag Verde (Inscrição Direta)</span>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showCardTag: settings.showCardTag === false })}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    settings.showCardTag !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}
+                >
+                  {settings.showCardTag !== false ? 'Exibido' : 'Removido'}
+                </button>
+              </div>
+
+              {/* Toggle Regulamento */}
+              <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-200">Regulamento no Rodapé</span>
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, showRulesSection: settings.showRulesSection === false })}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                    settings.showRulesSection !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}
+                >
+                  {settings.showRulesSection !== false ? 'Exibido' : 'Removido'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              As alterações de cores e logo são salvas diretamente e sincronizam em tempo real.
+            </span>
+            <button
+              type="submit"
+              disabled={loadingAction}
+              className="py-3 px-8 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
+            >
+              Salvar Todas as Configurações
+            </button>
+          </div>
+        </form>
       )}
 
       {/* ================= TAB: FORMULÁRIO DE INSCRIÇÃO & CAMPOS EM VERDE ================= */}
