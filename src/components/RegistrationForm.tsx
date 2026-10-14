@@ -14,11 +14,14 @@ import {
   Gift,
   Trophy,
   RefreshCw,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Participant, Raffle } from '../types.ts';
 import { TicketCard } from './TicketCard.tsx';
 import { AppLogo } from '../utils/theme.tsx';
+import { CountdownClock } from './CountdownClock.tsx';
 
 interface RegistrationFormProps {
   raffle: Raffle;
@@ -89,6 +92,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const rulesText = settings.rulesText || '';
   const showCheckTicketLink = settings.showCheckTicketLink !== false;
   const checkTicketText = settings.checkTicketText || 'Consultar meu bilhete';
+
+  // Calendário e Relógio de Contagem Regressiva
+  const showCountdownTimer = settings.showCountdownTimer !== false;
+  const showDrawCalendar = settings.showDrawCalendar !== false;
+  const drawDate = settings.drawDate || '2026-05-15';
+  const drawTime = settings.drawTime || '20:00';
+  const drawDateTime = settings.drawDateTime;
+  const drawLocation = settings.drawLocation || 'Transmissão Ao Vivo Oficial';
+  const drawTimezone = settings.drawTimezone || 'Horário Oficial';
+  const countdownTitle = settings.countdownTitle || 'Contagem Regressiva para o Sorteio';
+  const countdownMessage = settings.countdownMessage || '🎉 O Sorteio está acontecendo agora ao vivo!';
 
   const playSuccessChime = () => {
     try {
@@ -237,25 +251,33 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         {/* Prizes preview banner */}
         {showPrizesPreview && raffle.prizes && raffle.prizes.length > 0 && (
           <div className="mt-4 pt-4 border-t border-slate-800">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 mb-2">
-              <Gift className="w-3.5 h-3.5" />
-              Prêmios em Disputa ({raffle.prizes.length}):
-            </span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Gift className="w-3.5 h-3.5" />
+                Prêmios em Disputa ({raffle.prizes.reduce((sum, p) => sum + (p.quantity || 1), 0)} itens no total):
+              </span>
+            </div>
             <div className="flex flex-wrap gap-2">
-              {raffle.prizes.map((p) => (
-                <div
-                  key={p.id}
-                  className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 text-slate-200"
-                >
-                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 font-black text-[10px] flex items-center justify-center">
-                    {p.rank}º
-                  </span>
-                  <span className="font-semibold text-white">{p.title}</span>
-                  {p.estimatedValue && (
-                    <span className="text-[10px] text-emerald-400 font-mono">({p.estimatedValue})</span>
-                  )}
-                </div>
-              ))}
+              {raffle.prizes.map((p) => {
+                const qty = typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1;
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 text-slate-200"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                      {p.rank}º
+                    </span>
+                    <span className="font-semibold text-white">{p.title}</span>
+                    <span className="bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded text-[10px] border border-amber-500/30 shrink-0">
+                      Qtd: {qty}
+                    </span>
+                    {p.estimatedValue && (
+                      <span className="text-[10px] text-emerald-400 font-mono">({p.estimatedValue})</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -276,8 +298,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span>Sorteio Auditável</span>
             </div>
           </div>
-        )}
       </div>
+
+      {/* Relógio de Tempo / Contagem Regressiva para o Sorteio */}
+      {showCountdownTimer && (
+        <div className="mb-6">
+          <CountdownClock
+            drawDate={drawDate}
+            drawTime={drawTime}
+            drawDateTime={drawDateTime}
+            drawLocation={drawLocation}
+            drawTimezone={drawTimezone}
+            title={countdownTitle}
+            customMessage={countdownMessage}
+            showCalendarBadge={showDrawCalendar}
+            variant="card"
+          />
+        </div>
+      )}
 
       {/* Main Registration Form */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative">

@@ -109,7 +109,12 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data.raffle) {
-          setRaffle(data.raffle);
+          setRaffle((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(data.raffle)) {
+              return prev;
+            }
+            return data.raffle;
+          });
         }
         if (Array.isArray(data.participants)) {
           setParticipants(data.participants);

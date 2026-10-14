@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Trophy,
   Play,
@@ -36,11 +36,15 @@ import {
   Upload,
   Eye,
   Check,
+  Calendar,
+  Clock,
+  Minus,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { AppSettings, Prize, Raffle } from '../types.ts';
 import { exportParticipantsPDF, exportWinnersPDF } from '../utils/pdfExport.ts';
 import { THEME_PRESETS, AppLogo, getThemeStyles } from '../utils/theme.tsx';
+import { CountdownClock, formatDrawDateHuman } from './CountdownClock.tsx';
 
 interface AdminPanelProps {
   raffle: Raffle;
@@ -92,7 +96,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenPrintPoster,
 }) => {
   // Navigation inside Admin Panel
-  const [adminTab, setAdminTab] = useState<'draw' | 'theme' | 'form' | 'poster' | 'settings' | 'prizes' | 'rules' | 'participants' | 'audit'>('draw');
+  const [adminTab, setAdminTab] = useState<
+    'draw' | 'prizes' | 'schedule' | 'theme' | 'form' | 'poster' | 'settings' | 'rules' | 'participants' | 'audit'
+  >('prizes');
+
+  // Track if user has modified anything so background polls don't erase what they are typing
+  const hasUserEdited = useRef(false);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,8 +113,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
+      hasUserEdited.current = true;
       setSettings((prev) => ({ ...prev, logoUrl: base64 }));
-      setActionSuccess('Logo carregado com sucesso! Clique em "Salvar Alterações" para aplicar em todo o aplicativo.');
+      setActionSuccess('Logo carregado com sucesso! Clique em "Gravar Alterações" para salvar na base de dados.');
     };
     reader.readAsDataURL(file);
   };
@@ -113,6 +123,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSelectThemePreset = (presetId: string) => {
     const preset = THEME_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
+    hasUserEdited.current = true;
     setSettings((prev) => ({
       ...prev,
       themePreset: preset.id,
@@ -121,13 +132,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       themeBgStyle: preset.style,
       themeTextColor: preset.isLight ? 'dark' : 'light',
     }));
-    setActionSuccess(`Tema de cores "${preset.name}" selecionado! Clique em Salvar para gravar.`);
+    setActionSuccess(`Tema de cores "${preset.name}" selecionado! Clique em Gravar Alterações para salvar.`);
   };
 
   // Form states for general configuration
   const [title, setTitle] = useState(raffle.title);
   const [description, setDescription] = useState(raffle.description);
-  const [prizes, setPrizes] = useState<Prize[]>(raffle.prizes || []);
+  const [prizes, setPrizes] = useState<Prize[]>(
+    (raffle.prizes || []).map((p) => ({
+      ...p,
+      quantity: typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1,
+    }))
+  );
 
   // Settings
   const [settings, setSettings] = useState<AppSettings>(
@@ -144,16 +160,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       adminPin: '1234',
       announcementBanner: '🎉 Grande Sorteio Oficial em Andamento! Cadastre-se e acompanhe os resultados ao vivo.',
       showAnnouncement: true,
+      drawDate: '2026-05-15',
+      drawTime: '20:00',
+      drawDateTime: '2026-05-15T20:00',
+      drawTimezone: 'Horário Oficial',
+      drawLocation: 'Transmissão Ao Vivo Oficial',
+      showDrawCalendar: true,
+      showCountdownTimer: true,
+      countdownTitle: 'Contagem Regressiva para o Sorteio',
+      countdownMessage: '🎉 O Sorteio está acontecendo agora ao vivo!',
     }
   );
 
-  // Sync state if raffle changes externally
+  // Sync state ONLY if user has not made local changes (prevent typing loss)
   useEffect(() => {
-    setTitle(raffle.title);
-    setDescription(raffle.description);
-    setPrizes(raffle.prizes);
-    if (raffle.settings) {
-      setSettings(raffle.settings);
+    if (!hasUserEdited.current) {
+      setTitle(raffle.title);
+      setDescription(raffle.description);
+      setPrizes(
+        (raffle.prizes || []).map((p) => ({
+          ...p,
+          quantity: typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1,
+        }))
+      );
+      if (raffle.settings) {
+        setSettings(raffle.settings);
+      }
     }
   }, [raffle]);
 
@@ -166,10 +198,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // New Prize modal/form
+  // New Prize modal/form with QUANTITY
   const [newPrizeTitle, setNewPrizeTitle] = useState('');
   const [newPrizeDesc, setNewPrizeDesc] = useState('');
   const [newPrizeVal, setNewPrizeVal] = useState('');
+  const [newPrizeQty, setNewPrizeQty] = useState(1);
 
   // Email Audit logs
   const [emailAudit, setEmailAudit] = useState<{ emailLog: any[]; activeCodes: any[] }>({
@@ -216,10 +249,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       const data = await res.json();
       if (res.ok) {
-        setActionSuccess('Todas as configurações do aplicativo foram salvas com sucesso na base de dados!');
+        hasUserEdited.current = false;
+        setActionSuccess('✅ Todas as alterações (prêmios, quantidades, calendário, relógio, cores) foram gravadas com sucesso na base de dados!');
         onRefreshState();
       } else {
-        setActionError(data.error || 'Erro ao salvar configurações.');
+        setActionError('❌ ' + (data.error || 'Erro ao salvar configurações.'));
       }
     } catch (err: any) {
       setActionError('Falha ao comunicar com o servidor: ' + err.message);
@@ -228,7 +262,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Add Prize
+  // Add Prize with Quantity
   const handleAddPrize = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPrizeTitle.trim()) return;
@@ -239,14 +273,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       title: newPrizeTitle.trim(),
       description: newPrizeDesc.trim() || undefined,
       estimatedValue: newPrizeVal.trim() || undefined,
+      quantity: Math.max(1, Number(newPrizeQty) || 1),
     };
 
     const updated = [...prizes, newPrize];
     setPrizes(updated);
+    hasUserEdited.current = true;
     setNewPrizeTitle('');
     setNewPrizeDesc('');
     setNewPrizeVal('');
-    setActionSuccess(`Prêmio "${newPrize.title}" adicionado. Lembre-se de clicar em "Salvar Configurações".`);
+    setNewPrizeQty(1);
+    setActionSuccess(`Prêmio "${newPrize.title}" (${newPrize.quantity} un.) adicionado à lista. Clique em "Gravar Alterações" para salvar.`);
+  };
+
+  const handleUpdatePrizeQty = (prizeId: string, delta: number) => {
+    hasUserEdited.current = true;
+    setPrizes((prev) =>
+      prev.map((p) => {
+        if (p.id === prizeId) {
+          const current = typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1;
+          const next = Math.max(1, current + delta);
+          return { ...p, quantity: next };
+        }
+        return p;
+      })
+    );
+  };
+
+  const handleSetPrizeQtyDirect = (prizeId: string, val: number) => {
+    hasUserEdited.current = true;
+    setPrizes((prev) =>
+      prev.map((p) => (p.id === prizeId ? { ...p, quantity: Math.max(1, val || 1) } : p))
+    );
+  };
+
+  const handleDiscardEdits = () => {
+    hasUserEdited.current = false;
+    setTitle(raffle.title);
+    setDescription(raffle.description);
+    setPrizes(
+      (raffle.prizes || []).map((p) => ({
+        ...p,
+        quantity: typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1,
+      }))
+    );
+    if (raffle.settings) {
+      setSettings(raffle.settings);
+    }
+    setActionSuccess('Alterações descartadas e dados recarregados da base central.');
   };
 
   // Remove Prize

@@ -102,14 +102,27 @@ const defaultSettings: AppSettings = {
 
   // Controle de Acesso Restrito ("Só o administrador tem acesso às informações de todo o aplicativo")
   onlyAdminAccessAll: true,
+
+  // Calendário e Horário do Sorteio (Dias e Horas que será feito)
+  drawDate: '2026-05-15',
+  drawTime: '20:00',
+  drawDateTime: '2026-05-15T20:00',
+  drawTimezone: 'Horário Oficial',
+  drawLocation: 'Transmissão Ao Vivo Oficial',
+  showDrawCalendar: true,
+
+  // Relógio de Tempo / Contagem Regressiva para o Sorteio
+  showCountdownTimer: true,
+  countdownTitle: 'Contagem Regressiva para o Sorteio',
+  countdownMessage: '🎉 O Sorteio está acontecendo agora ao vivo!',
 };
 
 const defaultPrizes: Prize[] = [
-  { id: 'prize-1', rank: 1, title: 'MacBook Air M3 / Notebook Gamer Ultra', description: 'Computador de alta performance para trabalho e jogos', estimatedValue: 'R$ 9.500,00' },
-  { id: 'prize-2', rank: 2, title: 'PlayStation 5 Pro + 2 Controles', description: 'Console de última geração com kit de jogos', estimatedValue: 'R$ 5.800,00' },
-  { id: 'prize-3', rank: 3, title: 'iPhone 16 Pro Max 256GB', description: 'Smartphone topo de linha com câmera profissional', estimatedValue: 'R$ 8.900,00' },
-  { id: 'prize-4', rank: 4, title: 'Smart TV 65" 4K QLED', description: 'Cinema em casa com som Dolby Atmos', estimatedValue: 'R$ 4.200,00' },
-  { id: 'prize-5', rank: 5, title: 'Vale-Compras de R$ 1.500,00', description: 'Crédito livre para compras online', estimatedValue: 'R$ 1.500,00' },
+  { id: 'prize-1', rank: 1, title: 'MacBook Air M3 / Notebook Gamer Ultra', description: 'Computador de alta performance para trabalho e jogos', estimatedValue: 'R$ 9.500,00', quantity: 1 },
+  { id: 'prize-2', rank: 2, title: 'PlayStation 5 Pro + 2 Controles', description: 'Console de última geração com kit de jogos', estimatedValue: 'R$ 5.800,00', quantity: 2 },
+  { id: 'prize-3', rank: 3, title: 'iPhone 16 Pro Max 256GB', description: 'Smartphone topo de linha com câmera profissional', estimatedValue: 'R$ 8.900,00', quantity: 1 },
+  { id: 'prize-4', rank: 4, title: 'Smart TV 65" 4K QLED', description: 'Cinema em casa com som Dolby Atmos', estimatedValue: 'R$ 4.200,00', quantity: 3 },
+  { id: 'prize-5', rank: 5, title: 'Vale-Compras de R$ 1.500,00', description: 'Crédito livre para compras online', estimatedValue: 'R$ 1.500,00', quantity: 5 },
 ];
 
 const initialRaffle: Raffle = {
@@ -194,6 +207,12 @@ function loadDatabase(): DBData {
           parsed.raffle.settings = defaultSettings;
         } else {
           parsed.raffle.settings = { ...defaultSettings, ...parsed.raffle.settings };
+        }
+        if (Array.isArray(parsed.raffle.prizes)) {
+          parsed.raffle.prizes = parsed.raffle.prizes.map((p: any) => ({
+            ...p,
+            quantity: typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1,
+          }));
         }
         return parsed;
       }
@@ -597,7 +616,11 @@ async function startServer() {
       db.raffle.allowRegistrations = allowRegistrations;
     }
     if (Array.isArray(prizes)) {
-      db.raffle.prizes = prizes;
+      db.raffle.prizes = prizes.map((p, idx) => ({
+        ...p,
+        rank: typeof p.rank === 'number' ? p.rank : idx + 1,
+        quantity: typeof p.quantity === 'number' && p.quantity > 0 ? Number(p.quantity) : 1,
+      }));
     }
     if (settings && typeof settings === 'object') {
       db.raffle.settings = {
@@ -646,9 +669,11 @@ async function startServer() {
       return res.status(404).json({ error: 'Prêmio não encontrado.' });
     }
 
-    // Check if prize was already drawn
-    if (db.raffle.winners.some((w) => w.prizeId === prizeId)) {
-      return res.status(400).json({ error: 'Este prêmio já possui um ganhador sorteado!' });
+    // Check if prize reached its maximum quantity of winners
+    const winnersForPrize = db.raffle.winners.filter((w) => w.prizeId === prizeId);
+    const maxWinners = typeof prize.quantity === 'number' && prize.quantity > 0 ? prize.quantity : 1;
+    if (winnersForPrize.length >= maxWinners) {
+      return res.status(400).json({ error: `Todas as ${maxWinners} unidade(s) deste prêmio já foram sorteadas!` });
     }
 
     // Eligible participants: all registered who haven't won a prize yet
@@ -676,8 +701,9 @@ async function startServer() {
 
     db.raffle.winners.push(winnerRecord);
 
-    // If all prizes are won, set raffle status completed
-    if (db.raffle.winners.length >= db.raffle.prizes.length) {
+    // If all prize units are won, set raffle status completed
+    const totalPrizeUnits = db.raffle.prizes.reduce((sum, p) => sum + (p.quantity || 1), 0);
+    if (db.raffle.winners.length >= totalPrizeUnits) {
       db.raffle.status = 'completed';
     } else {
       db.raffle.status = 'open';

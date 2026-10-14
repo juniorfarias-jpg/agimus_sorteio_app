@@ -4,6 +4,7 @@ export interface Prize {
   title: string;
   description?: string;
   estimatedValue?: string;
+  quantity?: number; // Quantidade de unidades deste prêmio em disputa
 }
 
 export interface Winner {
@@ -88,6 +89,19 @@ export interface AppSettings {
 
   // Controle de Acesso Restrito ("Só o administrador tem acesso às informações de todo o aplicativo")
   onlyAdminAccessAll?: boolean;
+
+  // Calendário e Horário do Sorteio (Dias e Horas que será feito)
+  drawDate?: string; // Ex: '2026-05-15'
+  drawTime?: string; // Ex: '20:00'
+  drawDateTime?: string; // ISO ou '2026-05-15T20:00'
+  drawTimezone?: string; // Ex: 'Horário Oficial'
+  drawLocation?: string; // Ex: 'Transmissão Ao Vivo Oficial'
+  showDrawCalendar?: boolean;
+
+  // Relógio de Tempo / Contagem Regressiva para o Sorteio
+  showCountdownTimer?: boolean;
+  countdownTitle?: string;
+  countdownMessage?: string;
 }
 
 export interface Raffle {
