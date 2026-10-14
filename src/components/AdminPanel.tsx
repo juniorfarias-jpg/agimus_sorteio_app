@@ -29,7 +29,10 @@ import {
   QrCode,
   Flame,
   FileDown,
+  Printer,
+  Smartphone,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { AppSettings, Prize, Raffle } from '../types.ts';
 import { exportParticipantsPDF, exportWinnersPDF } from '../utils/pdfExport.ts';
 
@@ -48,7 +51,30 @@ interface AdminPanelProps {
   onViewTicket: (ticketNum: string) => void;
   onRefreshState: () => void;
   onClose?: () => void;
+  serverPublicUrl?: string;
+  onOpenPrintPoster?: () => void;
 }
+
+const AdminPosterQRCode: React.FC<{ targetUrl: string }> = ({ targetUrl }) => {
+  const [dataUrl, setDataUrl] = useState('');
+  useEffect(() => {
+    if (targetUrl) {
+      QRCode.toDataURL(targetUrl, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 320,
+        color: { dark: '#0f172a', light: '#ffffff' },
+      })
+        .then(setDataUrl)
+        .catch((err) => console.error('Erro ao gerar QR Code para cartaz:', err));
+    }
+  }, [targetUrl]);
+
+  if (!dataUrl) {
+    return <div className="w-48 h-48 flex items-center justify-center text-slate-400 text-xs">Gerando QR Code...</div>;
+  }
+  return <img src={dataUrl} alt="QR Code Oficial" className="w-52 h-52 mx-auto" />;
+};
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   raffle,
@@ -56,9 +82,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onViewTicket,
   onRefreshState,
   onClose,
+  serverPublicUrl,
+  onOpenPrintPoster,
 }) => {
   // Navigation inside Admin Panel
-  const [adminTab, setAdminTab] = useState<'draw' | 'settings' | 'prizes' | 'rules' | 'participants' | 'audit'>('draw');
+  const [adminTab, setAdminTab] = useState<'draw' | 'form' | 'poster' | 'settings' | 'prizes' | 'rules' | 'participants' | 'audit'>('draw');
 
   // Form states for general configuration
   const [title, setTitle] = useState(raffle.title);
@@ -456,6 +484,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
+          onClick={() => setAdminTab('form')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+            adminTab === 'form'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-bold'
+              : 'text-emerald-400 hover:text-emerald-200 hover:bg-emerald-950/40 border border-emerald-500/30'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          Formulário de Inscrição (Campos em Verde)
+        </button>
+
+        <button
+          onClick={() => setAdminTab('poster')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+            adminTab === 'poster'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold'
+              : 'text-indigo-300 hover:text-white hover:bg-indigo-950/40 border border-indigo-500/30'
+          }`}
+        >
+          <Printer className="w-3.5 h-3.5 text-indigo-400" />
+          Cartaz QR Code Papel (A4)
+        </button>
+
+        <button
           onClick={() => setAdminTab('settings')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
             adminTab === 'settings'
@@ -691,7 +743,468 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* ================= TAB 2: DADOS & TEXTOS ================= */}
+      {/* ================= TAB: FORMULÁRIO DE INSCRIÇÃO & CAMPOS EM VERDE ================= */}
+      {adminTab === 'form' && (
+        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+          <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                Personalização dos Textos e Campos (Assinalados em Verde)
+              </div>
+              <h2 className="text-xl font-black text-white">Configurações do Formulário de Inscrição</h2>
+              <p className="text-xs text-slate-400">
+                Altere aqui todos os textos, títulos, rótulos, campos obrigatórios/opcionais e mensagens exibidas no formulário do sorteio.
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={loadingAction}
+              className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+            >
+              Salvar Alterações
+            </button>
+          </div>
+
+          {/* Section 1: Cabeçalho & Títulos do Formulário */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              1. Cabeçalho & Títulos (Assinalados em Verde)
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Badge Superior do Cabeçalho
+                </label>
+                <input
+                  type="text"
+                  value={settings.formBadgeText || ''}
+                  onChange={(e) => setSettings({ ...settings, formBadgeText: e.target.value })}
+                  placeholder="Inscrição Oficial para o Sorteio"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Exibido na tag com brilho no topo do formulário.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Tag do Cartão de Inscrição
+                </label>
+                <input
+                  type="text"
+                  value={settings.formCardTag || ''}
+                  onChange={(e) => setSettings({ ...settings, formCardTag: e.target.value })}
+                  placeholder="Inscrição Direta"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Badge verde na lateral direita do formulário.</p>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Título Principal do Sorteio
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex: Grande Sorteio Oficial de Tecnologia 2026"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 font-bold"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Descrição / Apresentação do Sorteio
+                </label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Participe do maior sorteio comunitário do ano! Inscrição 100% gratuita..."
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Título do Cartão do Formulário
+                </label>
+                <input
+                  type="text"
+                  value={settings.formCardTitle || ''}
+                  onChange={(e) => setSettings({ ...settings, formCardTitle: e.target.value })}
+                  placeholder="Formulário de Inscrição"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Subtítulo / Instrução do Cartão
+                </label>
+                <input
+                  type="text"
+                  value={settings.formCardSubtitle || ''}
+                  onChange={(e) => setSettings({ ...settings, formCardSubtitle: e.target.value })}
+                  placeholder="Insira os dados solicitados pelo administrador do aplicativo"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Campos de Entrada de Dados */}
+          <div className="space-y-4 pt-4 border-t border-slate-800">
+            <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              2. Campos Solicitados aos Participantes (Assinalados em Verde)
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Campo: Nome Completo */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-indigo-400 uppercase">Campo 1: Nome Completo (Obrigatório)</span>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Rótulo do Campo (Label):</label>
+                  <input
+                    type="text"
+                    value={settings.formNameLabel || ''}
+                    onChange={(e) => setSettings({ ...settings, formNameLabel: e.target.value })}
+                    placeholder="Nome Completo"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Texto de Exemplo (Placeholder):</label>
+                  <input
+                    type="text"
+                    value={settings.formNamePlaceholder || ''}
+                    onChange={(e) => setSettings({ ...settings, formNamePlaceholder: e.target.value })}
+                    placeholder="Ex: Maria dos Santos Silva"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Campo: E-mail */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-indigo-400 uppercase">Campo 2: E-mail (Identificador Oficial)</span>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Rótulo do Campo (Label):</label>
+                  <input
+                    type="text"
+                    value={settings.formEmailLabel || ''}
+                    onChange={(e) => setSettings({ ...settings, formEmailLabel: e.target.value })}
+                    placeholder="E-mail"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Texto de Exemplo (Placeholder):</label>
+                  <input
+                    type="text"
+                    value={settings.formEmailPlaceholder || ''}
+                    onChange={(e) => setSettings({ ...settings, formEmailPlaceholder: e.target.value })}
+                    placeholder="Ex: seu.nome@gmail.com"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Texto de Ajuda / Nota Abaixo do Campo:</label>
+                  <input
+                    type="text"
+                    value={settings.formEmailHelpText || ''}
+                    onChange={(e) => setSettings({ ...settings, formEmailHelpText: e.target.value })}
+                    placeholder="Inscrição direta sem código de verificação por e-mail."
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Campo: Telefone / WhatsApp */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-400 uppercase">Campo 3: Telefone / WhatsApp</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSettings({ ...settings, formEnablePhone: settings.formEnablePhone === false })}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                        settings.formEnablePhone !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {settings.formEnablePhone !== false ? 'Visível' : 'Oculto'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSettings({ ...settings, requirePhone: !settings.requirePhone })}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                        settings.requirePhone ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {settings.requirePhone ? 'Obrigatório' : 'Opcional'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Rótulo do Campo (Label):</label>
+                  <input
+                    type="text"
+                    value={settings.formPhoneLabel || ''}
+                    onChange={(e) => setSettings({ ...settings, formPhoneLabel: e.target.value })}
+                    placeholder="Telefone / WhatsApp"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Texto de Exemplo (Placeholder):</label>
+                  <input
+                    type="text"
+                    value={settings.formPhonePlaceholder || ''}
+                    onChange={(e) => setSettings({ ...settings, formPhonePlaceholder: e.target.value })}
+                    placeholder="Ex: (11) 98765-4321 ou +244 9..."
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Campo: Cidade / Estado / Localidade */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-400 uppercase">Campo 4: Cidade / Província / Estado</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSettings({ ...settings, formEnableCity: settings.formEnableCity === false })}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                        settings.formEnableCity !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {settings.formEnableCity !== false ? 'Visível' : 'Oculto'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSettings({ ...settings, requireCity: !settings.requireCity })}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                        settings.requireCity ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {settings.requireCity ? 'Obrigatório' : 'Opcional'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Rótulo do Campo (Label):</label>
+                  <input
+                    type="text"
+                    value={settings.formCityLabel || ''}
+                    onChange={(e) => setSettings({ ...settings, formCityLabel: e.target.value })}
+                    placeholder="Cidade / Província / Estado"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Texto de Exemplo (Placeholder):</label>
+                  <input
+                    type="text"
+                    value={settings.formCityPlaceholder || ''}
+                    onChange={(e) => setSettings({ ...settings, formCityPlaceholder: e.target.value })}
+                    placeholder="Ex: São Paulo - SP ou Luanda"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Botão de Envio & Regulamento / Rodapé */}
+          <div className="space-y-4 pt-4 border-t border-slate-800">
+            <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              3. Botão de Envio, Regulamento & Rodapé (Assinalados em Verde)
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Texto do Botão de Inscrição
+                </label>
+                <input
+                  type="text"
+                  value={settings.formSubmitButtonText || ''}
+                  onChange={(e) => setSettings({ ...settings, formSubmitButtonText: e.target.value })}
+                  placeholder="Confirmar Inscrição no Sorteio"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Título da Seção de Regulamento
+                </label>
+                <input
+                  type="text"
+                  value={settings.rulesTitle || ''}
+                  onChange={(e) => setSettings({ ...settings, rulesTitle: e.target.value })}
+                  placeholder="Regulamento do Sorteio"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Texto do Link de Consulta de Bilhete
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={settings.checkTicketText || ''}
+                    onChange={(e) => setSettings({ ...settings, checkTicketText: e.target.value })}
+                    placeholder="Consultar meu bilhete"
+                    className="flex-1 bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ ...settings, showCheckTicketLink: settings.showCheckTicketLink === false })}
+                    className={`text-[10px] font-bold px-3 py-2 rounded-xl border transition-colors cursor-pointer ${
+                      settings.showCheckTicketLink !== false ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    {settings.showCheckTicketLink !== false ? 'Ativo' : 'Oculto'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                  Texto do Regulamento / Instruções (Exibido no rodapé do formulário)
+                </label>
+                <textarea
+                  rows={3}
+                  value={settings.rulesText || ''}
+                  onChange={(e) => setSettings({ ...settings, rulesText: e.target.value })}
+                  placeholder="1. Cada participante tem direito a 1 único bilhete numerado..."
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+
+              <div className="md:col-span-2 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <label className="block text-xs font-semibold text-indigo-400 uppercase mb-1">
+                  URL Base Pública para o QR Code Impresso em Papel
+                </label>
+                <p className="text-[11px] text-slate-400 mb-2">
+                  Esta é a URL que será embutida no QR Code impresso no papel. Deixe em branco para usar o endereço do servidor detectado automaticamente.
+                </p>
+                <input
+                  type="url"
+                  value={settings.customPublicUrl || ''}
+                  onChange={(e) => setSettings({ ...settings, customPublicUrl: e.target.value })}
+                  placeholder={serverPublicUrl || 'https://...'}
+                  className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none font-mono focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              Todas as alterações são salvas diretamente na base de dados central.
+            </span>
+            <button
+              type="submit"
+              disabled={loadingAction}
+              className="py-3 px-8 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+            >
+              Salvar Todas as Informações
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ================= TAB: CARTAZ QR CODE PARA PAPEL (A4) ================= */}
+      {adminTab === 'poster' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+          <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-1.5">
+                <Printer className="w-3.5 h-3.5" />
+                Formato para Impressão em Papel (A4 / Folha de Inscrição)
+              </div>
+              <h2 className="text-xl font-black text-white">Cartaz Oficial de Inscrição</h2>
+              <p className="text-xs text-slate-400">
+                Imprima este cartaz oficial em papel para que os participantes possam escanear direto pelo telemóvel e abrir o formulário.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenPrintPoster) {
+                    onOpenPrintPoster();
+                  } else {
+                    window.print();
+                  }
+                }}
+                className="py-2.5 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                Imprimir em Papel (A4)
+              </button>
+            </div>
+          </div>
+
+          <div className="max-w-xl mx-auto bg-white text-slate-900 rounded-2xl p-6 sm:p-8 border-2 border-slate-200 shadow-xl">
+            <div className="text-center pb-4 border-b-2 border-dashed border-slate-200">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 uppercase tracking-widest mb-2">
+                {settings.formBadgeText || 'Inscrição Oficial para o Sorteio'}
+              </span>
+              <h1 className="text-2xl font-black text-slate-900 leading-tight">
+                {title}
+              </h1>
+              <p className="text-xs text-slate-600 mt-1.5">
+                {description}
+              </p>
+            </div>
+
+            <div className="py-6 text-center">
+              <div className="inline-block p-4 rounded-3xl bg-slate-50 border-4 border-indigo-600 shadow-lg mb-2">
+                <AdminPosterQRCode targetUrl={`${(settings.customPublicUrl?.trim() || serverPublicUrl || window.location.origin).replace(/\/$/, '')}/?portal=participante`} />
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-1.5 text-sm font-black text-slate-900 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
+                  <Smartphone className="w-4 h-4 text-indigo-600" />
+                  Aponte a câmara do telemóvel para se inscrever
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 py-3 border-t-2 border-b-2 border-dashed border-slate-200 text-center text-xs">
+              <div className="p-2 rounded-lg bg-slate-50">
+                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] inline-flex items-center justify-center mb-1">1</span>
+                <p className="font-bold text-slate-800">Aponte a Câmara</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] inline-flex items-center justify-center mb-1">2</span>
+                <p className="font-bold text-slate-800">Preencha o Formulário</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50">
+                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] inline-flex items-center justify-center mb-1">3</span>
+                <p className="font-bold text-slate-800">Receba seu Bilhete</p>
+              </div>
+            </div>
+
+            <div className="mt-3 text-center text-[10px] font-mono text-slate-500 break-all">
+              {`${(settings.customPublicUrl?.trim() || serverPublicUrl || window.location.origin).replace(/\/$/, '')}/?portal=participante`}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= TAB 2: DADOS & TEXTOS GERAIS ================= */}
       {adminTab === 'settings' && (
         <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="border-b border-slate-800 pb-4">

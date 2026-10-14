@@ -1,37 +1,101 @@
 import React, { useState } from 'react';
-import { Mail, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, User, Phone, MapPin, Loader2, Sparkles, Ticket, Gift, Trophy } from 'lucide-react';
+import {
+  Mail,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  ShieldCheck,
+  User,
+  Phone,
+  MapPin,
+  Loader2,
+  Sparkles,
+  Ticket,
+  Gift,
+  Trophy,
+  RefreshCw,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
-import QRCode from 'qrcode';
 import { Participant, Raffle } from '../types.ts';
-import { playSuccessChime } from '../utils/audio.ts';
 import { TicketCard } from './TicketCard.tsx';
 
 interface RegistrationFormProps {
   raffle: Raffle;
   onRegistered: (participant: Participant) => void;
-  onViewExistingTicket: (ticketNumber: string) => void;
-  onGoToLive: () => void;
+  onGoToLive?: () => void;
+  onViewExistingTicket: (ticketNumOrEmail: string) => void;
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   raffle,
   onRegistered,
-  onViewExistingTicket,
   onGoToLive,
+  onViewExistingTicket,
 }) => {
+  // Input fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
 
+  // Status & feedback
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [alreadyRegisteredTicket, setAlreadyRegisteredTicket] = useState<string | null>(null);
   const [registeredParticipant, setRegisteredParticipant] = useState<Participant | null>(null);
 
-  const requirePhone = !!raffle.settings?.requirePhone;
-  const requireCity = !!raffle.settings?.requireCity;
   const isRegistrationOpen = raffle.allowRegistrations && raffle.status !== 'completed';
+  const settings = raffle.settings || ({} as any);
+
+  // Field configurations from Settings (customizable by Admin)
+  const badgeText = settings.formBadgeText || 'Inscrição Oficial para o Sorteio';
+  const cardTitle = settings.formCardTitle || 'Formulário de Inscrição';
+  const cardSubtitle = settings.formCardSubtitle || 'Insira os dados solicitados pela organização para emitir seu bilhete';
+  const cardTag = settings.formCardTag || 'Inscrição Direta';
+
+  const nameLabel = settings.formNameLabel || 'Nome Completo';
+  const namePlaceholder = settings.formNamePlaceholder || 'Ex: Maria dos Santos Silva';
+
+  const emailLabel = settings.formEmailLabel || 'E-mail';
+  const emailPlaceholder = settings.formEmailPlaceholder || 'Ex: seu.nome@gmail.com';
+  const emailHelpText = settings.formEmailHelpText || 'Inscrição direta sem código de validação por e-mail.';
+
+  const enablePhone = settings.formEnablePhone !== false;
+  const requirePhone = !!settings.requirePhone;
+  const phoneLabel = settings.formPhoneLabel || 'Telefone / WhatsApp';
+  const phonePlaceholder = settings.formPhonePlaceholder || 'Ex: (11) 98765-4321 ou +244 9...';
+
+  const enableCity = settings.formEnableCity !== false;
+  const requireCity = !!settings.requireCity;
+  const cityLabel = settings.formCityLabel || 'Cidade / Província / Estado';
+  const cityPlaceholder = settings.formCityPlaceholder || 'Ex: São Paulo - SP ou Luanda';
+
+  const submitButtonText = settings.formSubmitButtonText || 'Confirmar Inscrição no Sorteio';
+  const rulesTitle = settings.rulesTitle || 'Regulamento do Sorteio';
+  const rulesText = settings.rulesText || '';
+  const showCheckTicketLink = settings.showCheckTicketLink !== false;
+  const checkTicketText = settings.checkTicketText || 'Consultar meu bilhete';
+
+  const playSuccessChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime + i * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.1 + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + i * 0.1);
+        osc.stop(audioCtx.currentTime + i * 0.1 + 0.35);
+      });
+    } catch {
+      // AudioContext not allowed or not supported
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,9 +107,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     const cleanPhone = phone.trim();
     const cleanCity = city.trim();
 
-    // Client-side validations
     if (!cleanName || cleanName.length < 2) {
-      setErrorMsg('Por favor, digite seu nome completo (mínimo 2 letras).');
+      setErrorMsg('Por favor, informe seu nome completo (mínimo de 2 caracteres).');
       return;
     }
 
@@ -55,13 +118,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       return;
     }
 
-    if (requirePhone && !cleanPhone) {
-      setErrorMsg('O telefone / WhatsApp é obrigatório para participar deste sorteio.');
+    if (enablePhone && requirePhone && !cleanPhone) {
+      setErrorMsg(`O campo "${phoneLabel}" é obrigatório para participar deste sorteio.`);
       return;
     }
 
-    if (requireCity && !cleanCity) {
-      setErrorMsg('A cidade / localidade é obrigatória para participar deste sorteio.');
+    if (enableCity && requireCity && !cleanCity) {
+      setErrorMsg(`O campo "${cityLabel}" é obrigatório para participar deste sorteio.`);
       return;
     }
 
@@ -74,8 +137,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         body: JSON.stringify({
           name: cleanName,
           email: cleanEmail,
-          phone: cleanPhone || undefined,
-          city: cleanCity || undefined,
+          phone: enablePhone && cleanPhone ? cleanPhone : undefined,
+          city: enableCity && cleanCity ? cleanCity : undefined,
           raffleId: raffle.id,
         }),
       });
@@ -86,13 +149,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         if (data.ticketNumber) {
           setAlreadyRegisteredTicket(data.ticketNumber);
         }
-        setErrorMsg(data.error || 'Erro ao realizar a inscrição.');
+        setErrorMsg(data.error || 'Erro ao realizar a inscrição no servidor.');
         return;
       }
 
       playSuccessChime();
       confetti({
-        particleCount: 140,
+        particleCount: 150,
         spread: 90,
         origin: { y: 0.6 },
       });
@@ -100,40 +163,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setRegisteredParticipant(data.participant);
       onRegistered(data.participant);
     } catch (err) {
-      console.warn('Falha na comunicação de rede, gerando bilhete em modo resiliente:', err);
-      // Resilient client fallback: generate ticket & QR code so participant is never lost
-      const fallbackTicketNum = `SOR-${Math.floor(10000 + Math.random() * 90000)}`;
-      const targetUrl = `${window.location.origin}/?ticket=${fallbackTicketNum}&email=${encodeURIComponent(cleanEmail)}`;
-
-      const qrDataUrl = await QRCode.toDataURL(targetUrl, {
-        errorCorrectionLevel: 'M',
-        margin: 2,
-        scale: 6,
-        color: { dark: '#1e1b4b', light: '#ffffff' },
-      });
-
-      const fallbackParticipant: Participant = {
-        id: `part-${Date.now()}`,
-        raffleId: raffle.id,
-        ticketNumber: fallbackTicketNum,
-        name: cleanName,
-        email: cleanEmail,
-        phone: cleanPhone || undefined,
-        city: cleanCity || undefined,
-        registeredAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-        qrCodeDataUrl: qrDataUrl,
-      };
-
-      playSuccessChime();
-      confetti({
-        particleCount: 140,
-        spread: 90,
-        origin: { y: 0.6 },
-      });
-
-      setRegisteredParticipant(fallbackParticipant);
-      onRegistered(fallbackParticipant);
+      console.error('Falha de conexão com a base de dados:', err);
+      setErrorMsg(
+        'Não foi possível salvar sua inscrição no servidor central. Verifique sua conexão com a internet e clique em "Tentar Novamente". A inscrição só é válida após confirmação na base de dados.'
+      );
     } finally {
       setLoading(false);
     }
@@ -148,7 +181,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white">Inscrição Confirmada!</h2>
           <p className="text-sm text-slate-300 mt-1.5">
-            Seu bilhete oficial para o sorteio foi gerado e registrado com sucesso.
+            Seu bilhete oficial foi registrado com sucesso na base de dados central.
           </p>
         </div>
 
@@ -165,7 +198,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
         <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
           <Sparkles className="w-4 h-4 text-amber-300" />
-          Inscrição Oficial para o Sorteio
+          {badgeText}
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
@@ -210,7 +243,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </div>
           <div className="flex items-center gap-1.5 bg-slate-950/70 p-2 rounded-xl border border-slate-800/80">
             <Ticket className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span>Bilhete com QR Code</span>
+            <span>Bilhete Numerado</span>
           </div>
           <div className="flex items-center gap-1.5 bg-slate-950/70 p-2 rounded-xl border border-slate-800/80 col-span-2 sm:col-span-1">
             <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -225,15 +258,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           <div>
             <h2 className="text-lg font-black text-white flex items-center gap-2">
               <Ticket className="w-5 h-5 text-indigo-400" />
-              Formulário de Inscrição
+              {cardTitle}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Insira os dados solicitados pelo administrador do aplicativo
+              {cardSubtitle}
             </p>
           </div>
 
           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            Inscrição Direta
+            {cardTag}
           </span>
         </div>
 
@@ -280,7 +313,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-indigo-400" />
-                  Nome Completo <span className="text-rose-400">*</span>
+                  {nameLabel} <span className="text-rose-400">*</span>
                 </span>
                 <span className="text-[10px] text-slate-500 font-normal lowercase">obrigatório</span>
               </label>
@@ -289,7 +322,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Maria dos Santos Silva"
+                placeholder={namePlaceholder}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
               />
             </div>
@@ -299,7 +332,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-indigo-400" />
-                  E-mail <span className="text-rose-400">*</span>
+                  {emailLabel} <span className="text-rose-400">*</span>
                 </span>
                 <span className="text-[10px] text-slate-500 font-normal lowercase">para contato e premiação</span>
               </label>
@@ -308,74 +341,80 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Ex: seu.nome@gmail.com"
+                placeholder={emailPlaceholder}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
               />
-              <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
-                Inscrição direta sem código de verificação por e-mail.
-              </p>
+              {emailHelpText && (
+                <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                  {emailHelpText}
+                </p>
+              )}
             </div>
 
             {/* Field: Phone / WhatsApp (Requested by Admin) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-indigo-400" />
-                  Telefone / WhatsApp {requirePhone && <span className="text-rose-400">*</span>}
-                </span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                    requirePhone
-                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  {requirePhone ? 'Solicitado pelo Admin (Obrigatório)' : 'Opcional'}
-                </span>
-              </label>
-              <input
-                type="tel"
-                required={requirePhone}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ex: (11) 98765-4321 ou +244 9..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-              />
-            </div>
+            {enablePhone && (
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-indigo-400" />
+                    {phoneLabel} {requirePhone && <span className="text-rose-400">*</span>}
+                  </span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      requirePhone
+                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {requirePhone ? 'Obrigatório' : 'Opcional'}
+                  </span>
+                </label>
+                <input
+                  type="tel"
+                  required={requirePhone}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder={phonePlaceholder}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+            )}
 
             {/* Field: City / Location (Requested by Admin) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                  Cidade / Província / Estado {requireCity && <span className="text-rose-400">*</span>}
-                </span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                    requireCity
-                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  {requireCity ? 'Solicitado pelo Admin (Obrigatório)' : 'Opcional'}
-                </span>
-              </label>
-              <input
-                type="text"
-                required={requireCity}
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Ex: São Paulo - SP ou Luanda"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-              />
-            </div>
+            {enableCity && (
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                    {cityLabel} {requireCity && <span className="text-rose-400">*</span>}
+                  </span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      requireCity
+                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {requireCity ? 'Obrigatório' : 'Opcional'}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  required={requireCity}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder={cityPlaceholder}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+            )}
 
-            {/* Rules Text if set by admin */}
-            {raffle.settings?.rulesText && (
+            {/* Rules Text if configured */}
+            {rulesText && (
               <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800 text-[11px] text-slate-400">
-                <span className="font-bold text-slate-300 block mb-0.5">Regulamento do Sorteio:</span>
-                {raffle.settings.rulesText}
+                <span className="font-bold text-slate-300 block mb-0.5">{rulesTitle}:</span>
+                <p className="whitespace-pre-line">{rulesText}</p>
               </div>
             )}
 
@@ -389,11 +428,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Emitindo seu Bilhete...
+                    Gravando Inscrição na Base de Dados...
                   </>
                 ) : (
                   <>
-                    <span>Confirmar Inscrição no Sorteio</span>
+                    <span>{submitButtonText}</span>
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -403,21 +442,23 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         )}
 
         {/* Existing ticket check option */}
-        <div className="mt-6 pt-4 border-t border-slate-800 text-center">
-          <p className="text-xs text-slate-400">
-            Já realizou sua inscrição anteriormente?{' '}
-            <button
-              type="button"
-              onClick={() => {
-                const search = prompt('Digite seu e-mail ou número de bilhete:');
-                if (search) onViewExistingTicket(search.trim());
-              }}
-              className="text-indigo-400 hover:text-indigo-300 font-bold underline ml-1 cursor-pointer"
-            >
-              Consultar meu bilhete
-            </button>
-          </p>
-        </div>
+        {showCheckTicketLink && (
+          <div className="mt-6 pt-4 border-t border-slate-800 text-center">
+            <p className="text-xs text-slate-400">
+              Já realizou sua inscrição anteriormente?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  const search = prompt('Digite seu e-mail ou número de bilhete:');
+                  if (search) onViewExistingTicket(search.trim());
+                }}
+                className="text-indigo-400 hover:text-indigo-300 font-bold underline ml-1 cursor-pointer"
+              >
+                {checkTicketText}
+              </button>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

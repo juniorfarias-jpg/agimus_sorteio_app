@@ -48,7 +48,8 @@ const defaultSettings: AppSettings = {
   organizerName: 'Comissão Organizadora Oficial',
   contactEmail: 'suporte@sorteiolive.com',
   contactPhone: '(11) 98765-4321',
-  rulesText: '1. Cada participante tem direito a 1 (um) único bilhete validado por e-mail.\n2. O QR Code gerado é o comprovante oficial de participação.\n3. O sorteio é realizado ao vivo com transparência pública auditável.',
+  rulesText: '1. Cada participante tem direito a 1 (um) único bilhete numerado.\n2. O sorteio é realizado ao vivo com transparência pública auditável.\n3. O contemplado receberá a confirmação através dos dados cadastrados.',
+  rulesTitle: 'Regulamento do Sorteio',
   requirePhone: false,
   requireCity: false,
   maxParticipants: 0, // 0 = sem limite
@@ -57,6 +58,27 @@ const defaultSettings: AppSettings = {
   adminPin: '1234',
   announcementBanner: '🎉 Grande Sorteio Oficial em Andamento! Cadastre-se e acompanhe os resultados ao vivo.',
   showAnnouncement: true,
+
+  // Campos customizáveis do formulário
+  formBadgeText: 'Inscrição Oficial para o Sorteio',
+  formCardTitle: 'Formulário de Inscrição',
+  formCardSubtitle: 'Insira os dados solicitados pelo administrador do aplicativo',
+  formCardTag: 'Inscrição Direta',
+  formNameLabel: 'Nome Completo',
+  formNamePlaceholder: 'Ex: Maria dos Santos Silva',
+  formEmailLabel: 'E-mail',
+  formEmailPlaceholder: 'Ex: seu.nome@gmail.com',
+  formEmailHelpText: 'Inscrição direta sem código de verificação por e-mail.',
+  formEnablePhone: true,
+  formPhoneLabel: 'Telefone / WhatsApp',
+  formPhonePlaceholder: 'Ex: (11) 98765-4321 ou +244 9...',
+  formEnableCity: true,
+  formCityLabel: 'Cidade / Província / Estado',
+  formCityPlaceholder: 'Ex: São Paulo - SP ou Luanda',
+  formSubmitButtonText: 'Confirmar Inscrição no Sorteio',
+  showCheckTicketLink: true,
+  checkTicketText: 'Consultar meu bilhete',
+  customPublicUrl: '',
 };
 
 const defaultPrizes: Prize[] = [
@@ -283,11 +305,18 @@ async function startServer() {
       };
     });
 
+    const effectivePublicUrl = db.raffle.settings?.customPublicUrl?.trim() || process.env.APP_URL || getBaseUrl(req);
+
     res.json({
       raffle: {
         ...db.raffle,
+        settings: {
+          ...defaultSettings,
+          ...db.raffle.settings,
+        },
         winners: enrichedWinners,
       },
+      publicUrl: effectivePublicUrl,
       participantCount: db.participants.length,
       participants: participantsList,
       winners: enrichedWinners,
@@ -412,11 +441,16 @@ async function startServer() {
       }
 
       // Check required fields based on settings requested by the administrator
-      if (db.raffle.settings?.requirePhone && (!phone || !String(phone).trim())) {
-        return res.status(400).json({ error: 'O telefone / WhatsApp é obrigatório para participar deste sorteio.' });
+      const isPhoneEnabled = db.raffle.settings?.formEnablePhone !== false;
+      const isCityEnabled = db.raffle.settings?.formEnableCity !== false;
+
+      if (isPhoneEnabled && db.raffle.settings?.requirePhone && (!phone || !String(phone).trim())) {
+        const phoneLabel = db.raffle.settings?.formPhoneLabel || 'telefone / WhatsApp';
+        return res.status(400).json({ error: `O campo "${phoneLabel}" é obrigatório para participar deste sorteio.` });
       }
-      if (db.raffle.settings?.requireCity && (!city || !String(city).trim())) {
-        return res.status(400).json({ error: 'A cidade / localidade é obrigatória para participar deste sorteio.' });
+      if (isCityEnabled && db.raffle.settings?.requireCity && (!city || !String(city).trim())) {
+        const cityLabel = db.raffle.settings?.formCityLabel || 'cidade / localidade';
+        return res.status(400).json({ error: `O campo "${cityLabel}" é obrigatório para participar deste sorteio.` });
       }
 
       // 1. Strict duplicate check (1 participation per email)

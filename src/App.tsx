@@ -7,8 +7,9 @@ import { AdminPanel } from './components/AdminPanel.tsx';
 import { StageMode } from './components/StageMode.tsx';
 import { Participant, Prize, Raffle, Winner } from './types.ts';
 import { MobileJoinQRModal } from './components/MobileJoinQRModal.tsx';
+import { PrintableQRPosterModal } from './components/PrintableQRPosterModal.tsx';
 import { ParticipantPortal } from './components/ParticipantPortal.tsx';
-import { Settings, Gift, Sparkles } from 'lucide-react';
+import { Settings, Gift, Sparkles, Printer } from 'lucide-react';
 
 const fallbackRaffle: Raffle = {
   id: 'raffle-2026-01',
@@ -58,6 +59,8 @@ export default function App() {
   const [urlTicket, setUrlTicket] = useState<string | null>(null);
   const [selectedLookupTicket, setSelectedLookupTicket] = useState<string>('');
   const [isMobileQRModalOpen, setIsMobileQRModalOpen] = useState(false);
+  const [isPrintPosterModalOpen, setIsPrintPosterModalOpen] = useState(false);
+  const [serverPublicUrl, setServerPublicUrl] = useState<string>('');
 
   // Toast indicator for shortcut
   const [shortcutToast, setShortcutToast] = useState<string | null>(null);
@@ -76,6 +79,9 @@ export default function App() {
         }
         if (typeof data.participantCount === 'number') {
           setParticipantCount(data.participantCount);
+        }
+        if (data.publicUrl) {
+          setServerPublicUrl(data.publicUrl);
         }
       }
     } catch (err) {
@@ -201,12 +207,14 @@ export default function App() {
           fetchState();
         });
       }
+      window.addEventListener('focus', fetchState);
     } catch (err) {
       console.warn('SSE fallback to polling:', err);
     }
 
     return () => {
       clearInterval(pollInterval);
+      window.removeEventListener('focus', fetchState);
       if (eventSource) eventSource.close();
     };
   }, [fetchState]);
@@ -277,6 +285,7 @@ export default function App() {
           participantCount={participantCount}
           raffle={raffle}
           onOpenMobileQR={() => setIsMobileQRModalOpen(true)}
+          onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
         />
       )}
 
@@ -322,6 +331,8 @@ export default function App() {
             onViewTicket={handleViewTicket}
             onRefreshState={fetchState}
             onClose={() => setActiveTab('live')}
+            serverPublicUrl={serverPublicUrl}
+            onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
           />
         )}
       </main>
@@ -331,6 +342,16 @@ export default function App() {
         isOpen={isMobileQRModalOpen}
         onClose={() => setIsMobileQRModalOpen(false)}
         raffleTitle={raffle.title}
+        serverPublicUrl={serverPublicUrl}
+        onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
+      />
+
+      {/* Printable Poster Modal for Paper (A4) */}
+      <PrintableQRPosterModal
+        isOpen={isPrintPosterModalOpen}
+        onClose={() => setIsPrintPosterModalOpen(false)}
+        raffle={raffle}
+        serverPublicUrl={serverPublicUrl}
       />
 
       {/* Footer */}

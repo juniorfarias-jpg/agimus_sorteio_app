@@ -1,24 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Smartphone, QrCode, Copy, Check, ExternalLink, X, Sparkles, ShieldCheck } from 'lucide-react';
+import { Smartphone, QrCode, Copy, Check, ExternalLink, X, Sparkles, ShieldCheck, Printer } from 'lucide-react';
 
 interface MobileJoinQRModalProps {
   isOpen: boolean;
   onClose: () => void;
   raffleTitle: string;
+  serverPublicUrl?: string;
+  onOpenPrintPoster?: () => void;
 }
 
 export const MobileJoinQRModal: React.FC<MobileJoinQRModalProps> = ({
   isOpen,
   onClose,
   raffleTitle,
+  serverPublicUrl,
+  onOpenPrintPoster,
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  const targetUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/?portal=participante`
-    : '';
+  const baseOrigin = serverPublicUrl?.trim() || (typeof window !== 'undefined' ? window.location.origin : '');
+  const cleanBase = baseOrigin.replace(/\/$/, '');
+  const targetUrl = cleanBase ? `${cleanBase}/?portal=participante` : '';
 
   useEffect(() => {
     if (targetUrl) {
@@ -111,6 +115,19 @@ export const MobileJoinQRModal: React.FC<MobileJoinQRModalProps> = ({
               Abrir
             </a>
           </div>
+
+          {onOpenPrintPoster && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenPrintPoster();
+              }}
+              className="mt-2 w-full py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-emerald-400" />
+              Imprimir Cartaz com QR Code em Papel (A4)
+            </button>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">

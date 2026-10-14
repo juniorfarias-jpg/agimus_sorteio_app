@@ -43,6 +43,28 @@ export interface AppSettings {
   adminPin: string;
   announcementBanner: string;
   showAnnouncement: boolean;
+
+  // Campos customizáveis do formulário de inscrição
+  formBadgeText?: string;
+  formCardTitle?: string;
+  formCardSubtitle?: string;
+  formCardTag?: string;
+  formNameLabel?: string;
+  formNamePlaceholder?: string;
+  formEmailLabel?: string;
+  formEmailPlaceholder?: string;
+  formEmailHelpText?: string;
+  formEnablePhone?: boolean;
+  formPhoneLabel?: string;
+  formPhonePlaceholder?: string;
+  formEnableCity?: boolean;
+  formCityLabel?: string;
+  formCityPlaceholder?: string;
+  formSubmitButtonText?: string;
+  rulesTitle?: string;
+  showCheckTicketLink?: boolean;
+  checkTicketText?: string;
+  customPublicUrl?: string;
 }
 
 export interface Raffle {

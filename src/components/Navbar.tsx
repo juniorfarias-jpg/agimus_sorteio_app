@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Smartphone } from 'lucide-react';
+import { Gift, Volume2, VolumeX, Tv, ShieldCheck, Ticket, Users, Sparkles, Smartphone, Printer } from 'lucide-react';
 import { getMuted, setMuted } from '../utils/audio.ts';
 import { Raffle } from '../types.ts';
 
@@ -9,6 +9,7 @@ interface NavbarProps {
   participantCount: number;
   raffle?: Raffle | null;
   onOpenMobileQR: () => void;
+  onOpenPrintPoster?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   participantCount,
   raffle,
   onOpenMobileQR,
+  onOpenPrintPoster,
 }) => {
   const [muted, setMutedState] = React.useState(getMuted());
 
@@ -124,6 +126,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Smartphone className="w-3.5 h-3.5 text-amber-300" />
               <span className="hidden sm:inline">QR Telemóvel</span>
             </button>
+
+            {/* Imprimir Cartaz para Papel A4 */}
+            {onOpenPrintPoster && (
+              <button
+                onClick={onOpenPrintPoster}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-bold transition-colors cursor-pointer"
+                title="Imprimir Cartaz com QR Code para Papel (A4 / Folha de Inscrição)"
+              >
+                <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden md:inline">Cartaz Papel (A4)</span>
+              </button>
+            )}
 
             {/* Live Participants counter */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-xs">
