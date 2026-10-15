@@ -10,6 +10,7 @@ import { MobileJoinQRModal } from './components/MobileJoinQRModal.tsx';
 import { PrintableQRPosterModal } from './components/PrintableQRPosterModal.tsx';
 import { ParticipantPortal } from './components/ParticipantPortal.tsx';
 import { AdminAuthModal } from './components/AdminAuthModal.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { getThemeStyles } from './utils/theme.tsx';
 import { Settings, Lock, Sparkles, Printer, ShieldCheck } from 'lucide-react';
 
@@ -378,15 +379,20 @@ export default function App() {
         )}
 
         {activeTab === 'admin' && isAdmin && (
-          <AdminPanel
-            raffle={raffle}
-            participants={participants}
-            onViewTicket={handleViewTicket}
-            onRefreshState={fetchState}
-            onClose={() => setActiveTab('register')}
-            serverPublicUrl={serverPublicUrl}
-            onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
-          />
+          <ErrorBoundary
+            fallbackTitle="Painel do Administrador"
+            onReset={fetchState}
+          >
+            <AdminPanel
+              raffle={raffle}
+              participants={participants}
+              onViewTicket={handleViewTicket}
+              onRefreshState={fetchState}
+              onClose={() => setActiveTab('register')}
+              serverPublicUrl={serverPublicUrl}
+              onOpenPrintPoster={() => setIsPrintPosterModalOpen(true)}
+            />
+          </ErrorBoundary>
         )}
       </main>
 

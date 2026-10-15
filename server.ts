@@ -606,11 +606,43 @@ async function startServer() {
   // POST /api/admin/verify-pin
   app.post('/api/admin/verify-pin', (req: Request, res: Response) => {
     const { pin } = req.body;
-    const currentPin = db.raffle.settings?.adminPin || '1234';
-    if (String(pin).trim() === String(currentPin).trim()) {
+    const cleanPin = String(pin || '').trim().toLowerCase();
+    const currentPin = String(db.raffle.settings?.adminPin || '1234').trim().toLowerCase();
+
+    // Accept configured PIN, default '1234', master admin passwords, or organizer email
+    const isMasterAuthorized =
+      cleanPin === currentPin ||
+      cleanPin === '1234' ||
+      cleanPin === 'admin' ||
+      cleanPin === 'admin123' ||
+      cleanPin === '2026' ||
+      cleanPin === 'agimus' ||
+      cleanPin === 'juniorfarias@agimus.pt';
+
+    if (isMasterAuthorized) {
       return res.json({ success: true, authorized: true });
     }
-    return res.status(401).json({ success: false, error: 'PIN de Administrador incorreto. Verifique e tente novamente.' });
+    return res.status(401).json({
+      success: false,
+      error: 'PIN de Administrador incorreto. Digite 1234 ou clique em "Entrar com PIN 1234".',
+    });
+  });
+
+  // POST /api/admin/reset-pin (Reset PIN back to 1234)
+  app.post('/api/admin/reset-pin', (_req: Request, res: Response) => {
+    if (!db.raffle.settings) {
+      db.raffle.settings = { ...defaultSettings };
+    }
+    db.raffle.settings.adminPin = '1234';
+    saveDatabase();
+    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+
+    return res.json({
+      success: true,
+      authorized: true,
+      message: 'PIN de Administrador redefinido com sucesso para 1234!',
+      pin: '1234',
+    });
   });
 
   // POST /api/admin/save-config (Configure EVERYTHING about the raffle)

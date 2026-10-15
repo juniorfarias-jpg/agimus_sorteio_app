@@ -191,9 +191,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Operational states
   const [search, setSearch] = useState('');
-  const [selectedPrizeId, setSelectedPrizeId] = useState<string>(
-    raffle.prizes.find((p) => !raffle.winners.some((w) => w.prizeId === p.id))?.id || raffle.prizes[0]?.id || ''
-  );
+  const [selectedPrizeId, setSelectedPrizeId] = useState<string>(() => {
+    const list = raffle.prizes || [];
+    const winners = raffle.winners || [];
+    const rem = list.find((p) => {
+      const drawn = winners.filter((w) => w.prizeId === p.id).length;
+      const maxW = typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1;
+      return drawn < maxW;
+    });
+    return rem?.id || list[0]?.id || '';
+  });
   const [loadingAction, setLoadingAction] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -325,8 +332,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Remove Prize
   const handleRemovePrize = (id: string) => {
-    if (raffle.winners.some((w) => w.prizeId === id)) {
-      alert('Este prêmio já foi sorteado! Para removê-lo, reinicie os ganhadores primeiro.');
+    const winners = raffle.winners || [];
+    if (winners.some((w) => w.prizeId === id)) {
+      setActionError('Este prêmio já foi sorteado! Para removê-lo, reinicie os ganhadores primeiro.');
       return;
     }
     const filtered = prizes.filter((p) => p.id !== id).map((p, idx) => ({ ...p, rank: idx + 1 }));
@@ -473,9 +481,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     document.body.removeChild(link);
   };
 
-  const availablePrizes = prizes.filter((p) => !raffle.winners.some((w) => w.prizeId === p.id));
+  const availablePrizes = (prizes || []).filter((p) => {
+    const winnersForPrize = (raffle.winners || []).filter((w) => w.prizeId === p.id);
+    const maxWinners = typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1;
+    return winnersForPrize.length < maxWinners;
+  });
 
-  const filteredParticipants = participants.filter((p) => {
+  const safeParticipants = participants || [];
+  const filteredParticipants = safeParticipants.filter((p) => {
     const q = search.toLowerCase();
     return (
       p.name.toLowerCase().includes(q) ||
@@ -794,7 +807,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between">
                 <span className="text-slate-400">Prêmios Sorteados:</span>
-                <span className="font-bold text-amber-400">{raffle.winners.length}</span>
+                <span className="font-bold text-amber-400">{(raffle.winners || []).length}</span>
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between">
                 <span className="text-slate-400">Prêmios Pendentes:</span>
@@ -805,7 +818,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="pt-4 border-t border-slate-800">
               <button
                 onClick={handleResetWinners}
-                disabled={loadingAction || raffle.winners.length === 0}
+                disabled={loadingAction || (raffle.winners || []).length === 0}
                 className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-rose-950 hover:text-rose-300 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -849,10 +862,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/80">
-                    {raffle.winners.map((w, idx) => {
+                    {(raffle.winners || []).map((w, idx) => {
                       const fullEmail =
                         w.participantEmail ||
-                        participants.find((p) => p.ticketNumber === w.ticketNumber || p.id === w.participantId)?.email ||
+                        (participants || []).find((p) => p.ticketNumber === w.ticketNumber || p.id === w.participantId)?.email ||
                         w.participantEmailMasked;
 
                       return (
@@ -2495,7 +2508,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </tr>
                 ) : (
                   filteredParticipants.map((p) => {
-                    const won = raffle.winners.find((w) => w.ticketNumber === p.ticketNumber);
+                    const won = (raffle.winners || []).find((w) => w.ticketNumber === p.ticketNumber);
                     return (
                       <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-amber-400">{p.ticketNumber}</td>
