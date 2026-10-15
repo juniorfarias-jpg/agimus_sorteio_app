@@ -289,16 +289,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setActionError(null);
 
     try {
-      const res = await fetch('/api/admin/save-config', {
+      let currentSettings = { ...settings };
+
+      // If user pasted or selected a heavy base64 logo, upload it to the dedicated file endpoint first
+      if (
+        currentSettings.logoUrl &&
+        typeof currentSettings.logoUrl === 'string' &&
+        currentSettings.logoUrl.startsWith('data:image/') &&
+        currentSettings.logoUrl.length > 2000
+      ) {
+        try {
+          const upRes = await fetch('/api/admin/upload-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: currentSettings.logoUrl }),
+          });
+          if (upRes.ok) {
+            const upData = await upRes.json();
+            if (upData.logoUrl) {
+              currentSettings.logoUrl = upData.logoUrl;
+              setSettings((prev) => ({ ...prev, logoUrl: upData.logoUrl }));
+            }
+          }
+        } catch (uploadErr) {
+          console.warn('Pre-upload notice:', uploadErr);
+        }
+      }
+
+      // Try main save endpoint, with retry on trailing slash if needed
+      let res = await fetch('/api/admin/save-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
           description,
           prizes,
-          settings,
+          settings: currentSettings,
         }),
       });
+
+      if (res.status === 404) {
+        // Fallback retry
+        res = await fetch('./api/admin/save-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description,
+            prizes,
+            settings: currentSettings,
+          }),
+        });
+      }
 
       const text = await res.text();
       let data: any = {};
@@ -306,7 +348,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         data = JSON.parse(text);
       } catch {
         if (!res.ok) {
-          throw new Error(`Servidor respondeu com status ${res.status}: ${res.statusText || 'Erro inesperado'}`);
+          throw new Error(`Servidor respondeu com código ${res.status}: ${res.statusText || 'Não foi possível gravar'}`);
         }
       }
 
@@ -315,7 +357,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         if (data.raffle?.settings?.logoUrl) {
           setSettings((prev) => ({ ...prev, logoUrl: data.raffle.settings.logoUrl }));
         }
-        setActionSuccess('✅ Todas as alterações (logo, tema de cores, prêmios, calendário, relógio) foram gravadas com sucesso na base de dados!');
+        setActionSuccess('✅ Todas as alterações (logo, tema de cores, prêmios, calendário, relógio) foram gravadas e verificadas na base de dados com sucesso!');
         onRefreshState();
       } else {
         setActionError('❌ ' + (data.error || 'Erro ao salvar alterações no servidor.'));

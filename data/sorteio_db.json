@@ -1,42 +1,31 @@
 {
   "raffle": {
     "id": "raffle-2026-01",
-    "title": "Sorteio Oficial 2026",
-    "description": "Cadastre-se para concorrer",
+    "title": "Sorteio Oficial 2026 - Edição Especial",
+    "description": "Sorteio oficial auditado e transmitido ao vivo com prêmios exclusivos",
     "prizes": [
       {
         "id": "prize-1",
         "rank": 1,
-        "title": "MacBook Air M3 / Notebook Gamer Ultra",
-        "description": "Computador de alta performance para trabalho e jogos",
-        "quantity": 1
+        "title": "MacBook Pro M3 Max 1TB",
+        "description": "Notebook ultra performance",
+        "estimatedValue": "R$ 18.000,00",
+        "quantity": 2
       },
       {
         "id": "prize-2",
         "rank": 2,
-        "title": "PlayStation 5 Pro + 2 Controles",
-        "description": "Console de última geração com kit de jogos",
-        "quantity": 1
+        "title": "PlayStation 5 Pro + Kit Jogos",
+        "description": "Console de última geração",
+        "estimatedValue": "R$ 6.500,00",
+        "quantity": 3
       },
       {
         "id": "prize-3",
         "rank": 3,
         "title": "iPhone 16 Pro Max 256GB",
-        "description": "Smartphone topo de linha com câmera profissional",
-        "quantity": 1
-      },
-      {
-        "id": "prize-4",
-        "rank": 4,
-        "title": "Smart TV 65\" 4K QLED",
-        "description": "Cinema em casa com som Dolby Atmos",
-        "quantity": 1
-      },
-      {
-        "id": "prize-5",
-        "rank": 5,
-        "title": "Vale-Compras de R$ 1.500,00",
-        "description": "Crédito livre para compras online",
+        "description": "Smartphone topo de linha",
+        "estimatedValue": "R$ 8.900,00",
         "quantity": 1
       }
     ],
@@ -68,7 +57,7 @@
       "adminPin": "1234",
       "announcementBanner": "🎉 Grande Sorteio Oficial em Andamento! Cadastre-se e acompanhe os resultados ao vivo.",
       "showAnnouncement": true,
-      "formBadgeText": "Inscrição Oficial Especial",
+      "formBadgeText": "Inscrição Oficial 2026",
       "formCardTitle": "Formulário Oficial de Inscrição",
       "formCardSubtitle": "Insira os dados solicitados pelo administrador do aplicativo",
       "formCardTag": "Inscrição Direta",
@@ -87,12 +76,12 @@
       "showCheckTicketLink": true,
       "checkTicketText": "Consultar meu bilhete",
       "customPublicUrl": "",
-      "logoUrl": "/uploads/logo_1792078121013.png",
-      "logoText": "Sorteio",
+      "logoUrl": "/uploads/logo_test.png",
+      "logoText": "Sorteio Oficial",
       "showLogo": true,
-      "themePreset": "dark-slate",
-      "themeBgColorPrimary": "#020617",
-      "themeBgColorSecondary": "#0f172a",
+      "themePreset": "midnight-purple",
+      "themeBgColorPrimary": "#0f051d",
+      "themeBgColorSecondary": "#1e0b36",
       "themeBgStyle": "linear-to-b",
       "themeTextColor": "light",
       "showFormBadge": true,
@@ -102,14 +91,14 @@
       "showCardTag": true,
       "showRulesSection": true,
       "onlyAdminAccessAll": true,
-      "drawDate": "2026-05-15",
-      "drawTime": "20:00",
-      "drawDateTime": "2026-05-15T20:00",
-      "drawTimezone": "Horário Oficial",
-      "drawLocation": "Transmissão Ao Vivo Oficial",
+      "drawDate": "2026-06-20",
+      "drawTime": "21:00",
+      "drawDateTime": "2026-06-20T21:00",
+      "drawTimezone": "Horário de Brasília (GMT-3)",
+      "drawLocation": "Transmissão Ao Vivo Oficial YouTube",
       "showDrawCalendar": true,
       "showCountdownTimer": true,
-      "countdownTitle": "Contagem Regressiva para o Sorteio",
+      "countdownTitle": "Grande Sorteio Ao Vivo",
       "countdownMessage": "🎉 O Sorteio está acontecendo agora ao vivo!"
     }
   },

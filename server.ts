@@ -1,10 +1,11 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import QRCode from 'qrcode';
 import { createServer as createViteServer } from 'vite';
-import { AppSettings, Participant, Prize, Raffle, Winner } from './src/types.ts';
+import type { AppSettings, Participant, Prize, Raffle, Winner } from './src/types.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -611,7 +612,7 @@ async function startServer() {
   // ================= ADMIN & CONFIGURATION ENDPOINTS =================
   
   // POST /api/admin/verify-pin
-  app.post('/api/admin/verify-pin', (req: Request, res: Response) => {
+  app.post(['/api/admin/verify-pin', '/api/admin/verify-pin/'], (req: Request, res: Response) => {
     const { pin } = req.body;
     const cleanPin = String(pin || '').trim().toLowerCase();
     const currentPin = String(db.raffle.settings?.adminPin || '1234').trim().toLowerCase();
@@ -636,7 +637,7 @@ async function startServer() {
   });
 
   // POST /api/admin/reset-pin (Reset PIN back to 1234)
-  app.post('/api/admin/reset-pin', (_req: Request, res: Response) => {
+  app.post(['/api/admin/reset-pin', '/api/admin/reset-pin/'], (_req: Request, res: Response) => {
     if (!db.raffle.settings) {
       db.raffle.settings = { ...defaultSettings };
     }
@@ -653,7 +654,7 @@ async function startServer() {
   });
 
   // POST /api/admin/upload-logo (Saves uploaded logo directly to disk as a static image)
-  app.post('/api/admin/upload-logo', (req: Request, res: Response) => {
+  app.post(['/api/admin/upload-logo', '/api/admin/upload-logo/'], (req: Request, res: Response) => {
     try {
       const { imageBase64 } = req.body;
       if (!imageBase64 || typeof imageBase64 !== 'string') {
@@ -698,7 +699,7 @@ async function startServer() {
   });
 
   // POST /api/admin/save-config (Configure EVERYTHING about the raffle)
-  app.post('/api/admin/save-config', (req: Request, res: Response) => {
+  app.post(['/api/admin/save-config', '/api/admin/save-config/'], (req: Request, res: Response) => {
     try {
       const { title, description, allowRegistrations, prizes, settings } = req.body;
 
