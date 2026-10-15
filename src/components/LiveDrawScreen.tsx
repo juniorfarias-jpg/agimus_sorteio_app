@@ -19,6 +19,7 @@ import confetti from 'canvas-confetti';
 import { Participant, Prize, Raffle, Winner } from '../types.ts';
 import { playFanfare, playTickSound, startDrumroll, stopDrumroll } from '../utils/audio.ts';
 import { exportWinnersPDF } from '../utils/pdfExport.ts';
+import { CountdownClock } from './CountdownClock.tsx';
 
 interface LiveDrawScreenProps {
   raffle: Raffle;
@@ -87,7 +88,11 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
     ? participants.find((p) => p.ticketNumber.toLowerCase() === activeTicketParam.toLowerCase())
     : null;
 
-  const remainingPrizes = raffle.prizes.filter((p) => !raffle.winners.some((w) => w.prizeId === p.id));
+  const remainingPrizes = raffle.prizes.filter((p) => {
+    const winnersForPrize = raffle.winners.filter((w) => w.prizeId === p.id);
+    const maxWinners = typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1;
+    return winnersForPrize.length < maxWinners;
+  });
   const nextPrize = remainingPrizes[0] || null;
 
   return (
@@ -193,6 +198,21 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Relógio de Tempo / Contagem Regressiva para o Sorteio */}
+      {raffle.settings.showCountdownTimer !== false && (
+        <CountdownClock
+          drawDate={raffle.settings.drawDate}
+          drawTime={raffle.settings.drawTime}
+          drawDateTime={raffle.settings.drawDateTime}
+          drawLocation={raffle.settings.drawLocation}
+          drawTimezone={raffle.settings.drawTimezone}
+          title={raffle.settings.countdownTitle || 'Contagem Regressiva para o Sorteio Oficial'}
+          customMessage={raffle.settings.countdownMessage}
+          showCalendarBadge={raffle.settings.showDrawCalendar !== false}
+          variant="card"
+        />
+      )}
 
       {/* MOBILE SCAN QR CODE BANNER: Escanear pelo telemóvel para ir diretamente ao aplicativo */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 shadow-xl">
@@ -350,7 +370,7 @@ export const LiveDrawScreen: React.FC<LiveDrawScreenProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {raffle.winners.map((winner, idx) => (
                 <div
-                  key={winner.prizeId}
+                  key={`${winner.prizeId}-${winner.ticketNumber}-${idx}`}
                   className="bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 shadow-lg relative overflow-hidden transition-all group"
                 >
                   <div className="flex items-start justify-between mb-3">

@@ -230,11 +230,22 @@ function loadDatabase(): DBData {
   return initialData;
 }
 
-function saveDatabase(data: DBData = db) {
+function saveDatabase(data: DBData = db): boolean {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const tmpFile = `${DB_FILE}.tmp`;
+    const content = JSON.stringify(data, null, 2);
+    fs.writeFileSync(tmpFile, content, 'utf-8');
+    fs.renameSync(tmpFile, DB_FILE);
+    return true;
   } catch (err) {
-    console.error('Error saving database:', err);
+    console.error('Error saving database with atomic rename:', err);
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      return true;
+    } catch (fallbackErr) {
+      console.error('Critical fallback write failed:', fallbackErr);
+      return false;
+    }
   }
 }
 
@@ -630,12 +641,15 @@ async function startServer() {
       };
     }
 
-    saveDatabase();
+    const saved = saveDatabase();
+    if (!saved) {
+      return res.status(500).json({ error: 'Falha ao salvar alterações no disco da base de dados.' });
+    }
     broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
 
     res.json({
       success: true,
-      message: 'Configurações do aplicativo salvas com sucesso!',
+      message: 'Configurações do aplicativo gravadas com sucesso na base de dados!',
       raffle: db.raffle,
     });
   });

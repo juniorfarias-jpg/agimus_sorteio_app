@@ -298,6 +298,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <span>Sorteio Auditável</span>
             </div>
           </div>
+        )}
       </div>
 
       {/* Relógio de Tempo / Contagem Regressiva para o Sorteio */}

@@ -654,6 +654,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
+          onClick={() => setAdminTab('schedule')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+            adminTab === 'schedule'
+              ? 'bg-gradient-to-r from-amber-500 to-indigo-600 text-white shadow-md font-bold'
+              : 'text-amber-300 hover:text-white hover:bg-slate-800 border border-amber-500/30'
+          }`}
+        >
+          <Calendar className="w-3.5 h-3.5 text-amber-400" />
+          📅 Calendário & Relógio do Sorteio
+        </button>
+
+        <button
           onClick={() => setAdminTab('rules')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
             adminTab === 'rules'
@@ -1855,43 +1867,87 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="space-y-6">
           {/* Add Prize Form */}
           <form onSubmit={handleAddPrize} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-base font-bold text-white mb-2 flex items-center gap-2">
               <Plus className="w-4 h-4 text-emerald-400" />
               Adicionar Novo Prêmio à Disputa
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <p className="text-xs text-slate-400 mb-4">
+              Defina o nome do prêmio, o valor estimado e a <strong>quantidade de unidades em disputa</strong> que serão sorteadas.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-2">
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Título do Prêmio
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="Título do Prêmio (Ex: Notebook Gamer Ultra)"
+                  placeholder="Ex: Notebook Gamer Ultra / iPhone 16"
                   value={newPrizeTitle}
-                  onChange={(e) => setNewPrizeTitle(e.target.value)}
+                  onChange={(e) => {
+                    hasUserEdited.current = true;
+                    setNewPrizeTitle(e.target.value);
+                  }}
                   className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-indigo-500"
                 />
               </div>
+
               <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Quantidade em Disputa
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={newPrizeQty}
+                  onChange={(e) => {
+                    hasUserEdited.current = true;
+                    setNewPrizeQty(Math.max(1, parseInt(e.target.value) || 1));
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 text-amber-300 font-bold rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-amber-500 text-center"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Valor Estimado (Opcional)
+                </label>
                 <input
                   type="text"
-                  placeholder="Valor Estimado (Ex: R$ 5.000,00)"
+                  placeholder="Ex: R$ 5.000,00"
                   value={newPrizeVal}
-                  onChange={(e) => setNewPrizeVal(e.target.value)}
+                  onChange={(e) => {
+                    hasUserEdited.current = true;
+                    setNewPrizeVal(e.target.value);
+                  }}
                   className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-indigo-500"
                 />
               </div>
-              <div className="sm:col-span-3 flex gap-2">
+
+              <div className="sm:col-span-3">
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Descrição ou Regras do Prêmio
+                </label>
                 <input
                   type="text"
-                  placeholder="Descrição opcional do prêmio"
+                  placeholder="Ex: Cor preta, 512GB SSD, garantia de 1 ano do fabricante"
                   value={newPrizeDesc}
-                  onChange={(e) => setNewPrizeDesc(e.target.value)}
-                  className="flex-1 bg-slate-950 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-indigo-500"
+                  onChange={(e) => {
+                    hasUserEdited.current = true;
+                    setNewPrizeDesc(e.target.value);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-indigo-500"
                 />
+              </div>
+
+              <div className="flex items-end">
                 <button
                   type="submit"
-                  className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer whitespace-nowrap"
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  Adicionar Prêmio
+                  <Plus className="w-4 h-4" />
+                  Incluir Prêmio
                 </button>
               </div>
             </div>
@@ -1899,58 +1955,365 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* List of current prizes */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-white">Lista de Prêmios Cadastrados ({prizes.length})</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Gift className="w-4 h-4 text-amber-400" />
+                  Prêmios Cadastrados ({prizes.length} categorias • {prizes.reduce((sum, p) => sum + (p.quantity || 1), 0)} itens no total em disputa)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Ajuste as quantidades usando os botões <strong>+</strong> e <strong>-</strong> e clique em Gravar Alterações.
+                </p>
+              </div>
+
               <button
+                type="button"
                 onClick={() => handleSaveFullConfig()}
-                className="py-1.5 px-3 rounded-lg bg-indigo-600 text-white text-xs font-semibold cursor-pointer"
+                disabled={loadingAction}
+                className="py-2.5 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2 cursor-pointer transition-all shrink-0"
               >
-                Salvar Ordem dos Prêmios
+                <Save className="w-4 h-4" />
+                {loadingAction ? 'Gravando...' : 'Gravar Prêmios e Quantidades'}
               </button>
             </div>
 
-            <div className="space-y-3">
-              {prizes.map((p, idx) => {
-                const won = raffle.winners.find((w) => w.prizeId === p.id);
-                return (
-                  <div
-                    key={p.id}
-                    className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 font-mono font-bold text-xs flex items-center justify-center">
-                        {p.rank}º
-                      </span>
-                      <div>
-                        <h4 className="font-bold text-white text-sm">{p.title}</h4>
-                        <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                          {p.estimatedValue && <span className="text-emerald-400">{p.estimatedValue}</span>}
-                          {p.description && <span>• {p.description}</span>}
+            {prizes.length === 0 ? (
+              <div className="text-center py-10 bg-slate-950/50 rounded-2xl border border-slate-800 text-slate-400 text-xs">
+                Nenhum prêmio cadastrado. Utilize o formulário acima para adicionar os prêmios em disputa.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {prizes.map((p, idx) => {
+                  const qty = typeof p.quantity === 'number' && p.quantity > 0 ? p.quantity : 1;
+                  const winnersForPrize = raffle.winners.filter((w) => w.prizeId === p.id);
+                  const isFullyDrawn = winnersForPrize.length >= qty;
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-4 bg-slate-950 rounded-2xl border border-slate-800/90 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-slate-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <span className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                          {p.rank}º
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-white text-sm">{p.title}</h4>
+                            <span className="bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-md text-[11px] border border-amber-500/30">
+                              Qtd: {qty} {qty === 1 ? 'unidade' : 'unidades'} em disputa
+                            </span>
+                            {p.estimatedValue && (
+                              <span className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                                {p.estimatedValue}
+                              </span>
+                            )}
+                          </div>
+                          {p.description && (
+                            <p className="text-xs text-slate-400 mt-1">
+                              {p.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800/60">
+                        {/* Quantity Stepper */}
+                        <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase px-1.5">Qtd:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePrizeQty(p.id, -1)}
+                            disabled={qty <= 1}
+                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-bold text-xs flex items-center justify-center cursor-pointer transition-colors"
+                            title="Diminuir quantidade"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            value={qty}
+                            onChange={(e) => handleSetPrizeQtyDirect(p.id, parseInt(e.target.value) || 1)}
+                            className="w-12 text-center bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs rounded-lg py-1 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUpdatePrizeQty(p.id, 1)}
+                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center cursor-pointer transition-colors"
+                            title="Aumentar quantidade"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Status / Remove */}
+                        <div className="flex items-center gap-2">
+                          {winnersForPrize.length > 0 && (
+                            <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                              {winnersForPrize.length}/{qty} Ganhadores
+                            </span>
+                          )}
+
+                          {winnersForPrize.length === 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePrize(p.id)}
+                              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
+                              title="Remover prêmio"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
 
-                    <div className="flex items-center gap-2">
-                      {won ? (
-                        <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                          Sorteado: {won.participantName}
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleRemovePrize(p.id)}
-                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
-                          title="Remover prêmio"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => handleSaveFullConfig()}
+                disabled={loadingAction}
+                className="py-3 px-8 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <Save className="w-4 h-4" />
+                {loadingAction ? 'Gravando na Base de Dados...' : 'Salvar Alterações de Prêmios'}
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ================= TAB: CALENDÁRIO & RELÓGIO DE TEMPO ================= */}
+      {adminTab === 'schedule' && (
+        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+          <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-amber-400" />
+                Calendário dos Dias de Sorteio & Relógio de Tempo
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Configure as datas e horários em que o sorteio será realizado e o relógio de contagem regressiva exibido aos participantes.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loadingAction}
+              className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2 cursor-pointer transition-all shrink-0"
+            >
+              <Save className="w-4 h-4" />
+              {loadingAction ? 'Gravando...' : 'Gravar Calendário & Relógio'}
+            </button>
+          </div>
+
+          {/* Interactive Live Preview */}
+          <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              Pré-visualização em Tempo Real (Como os participantes veem)
+            </span>
+            <CountdownClock
+              drawDate={settings.drawDate || '2026-05-15'}
+              drawTime={settings.drawTime || '20:00'}
+              drawDateTime={settings.drawDateTime}
+              drawLocation={settings.drawLocation || 'Transmissão Ao Vivo'}
+              drawTimezone={settings.drawTimezone || 'America/Sao_Paulo'}
+              title={settings.countdownTitle || 'Contagem Regressiva para o Sorteio'}
+              customMessage={settings.countdownMessage}
+              showCalendarBadge={settings.showDrawCalendar !== false}
+              variant="card"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+            {/* Toggle Countdown Timer */}
+            <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-white text-xs uppercase flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-indigo-400" />
+                  Ativar Relógio de Tempo (Contagem Regressiva)
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Exibe o cronômetro em tempo real (dias, horas, minutos, segundos) até o momento do sorteio.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  hasUserEdited.current = true;
+                  setSettings({
+                    ...settings,
+                    showCountdownTimer: settings.showCountdownTimer === false ? true : false,
+                  });
+                }}
+                className={`w-14 h-8 rounded-full transition-colors relative cursor-pointer shrink-0 ml-4 ${
+                  settings.showCountdownTimer !== false ? 'bg-indigo-600' : 'bg-slate-800'
+                }`}
+              >
+                <div
+                  className={`w-6 h-6 rounded-full bg-white transition-transform absolute top-1 ${
+                    settings.showCountdownTimer !== false ? 'left-7' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Toggle Calendar Badge */}
+            <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-white text-xs uppercase flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-emerald-400" />
+                  Exibir Calendário de Dias de Sorteio
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Mostra a data e hora formatada em destaque nos bilhetes e no formulário de inscrição.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  hasUserEdited.current = true;
+                  setSettings({
+                    ...settings,
+                    showDrawCalendar: settings.showDrawCalendar === false ? true : false,
+                  });
+                }}
+                className={`w-14 h-8 rounded-full transition-colors relative cursor-pointer shrink-0 ml-4 ${
+                  settings.showDrawCalendar !== false ? 'bg-emerald-600' : 'bg-slate-800'
+                }`}
+              >
+                <div
+                  className={`w-6 h-6 rounded-full bg-white transition-transform absolute top-1 ${
+                    settings.showDrawCalendar !== false ? 'left-7' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Draw Date Input */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                Data do Sorteio (Dia / Mês / Ano)
+              </label>
+              <input
+                type="date"
+                required
+                value={settings.drawDate || '2026-05-15'}
+                onChange={(e) => {
+                  hasUserEdited.current = true;
+                  setSettings({ ...settings, drawDate: e.target.value });
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-500 font-mono"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Data oficial em que a urna ou roleta será acionada.</p>
+            </div>
+
+            {/* Draw Time Input */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                Hora do Sorteio
+              </label>
+              <input
+                type="time"
+                required
+                value={settings.drawTime || '20:00'}
+                onChange={(e) => {
+                  hasUserEdited.current = true;
+                  setSettings({ ...settings, drawTime: e.target.value });
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 font-mono"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Horário de início da apuração ou transmissão.</p>
+            </div>
+
+            {/* Location / Streaming Channel */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
+                Localização / Canal da Live
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Transmissão Ao Vivo no YouTube / Instagram @sorteiooficial"
+                value={settings.drawLocation || ''}
+                onChange={(e) => {
+                  hasUserEdited.current = true;
+                  setSettings({ ...settings, drawLocation: e.target.value });
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Timezone */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
+                Fuso Horário Oficial
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Horário de Brasília (UTC-3) ou Lisboa (WET)"
+                value={settings.drawTimezone || 'Horário Oficial de Brasília (UTC-3)'}
+                onChange={(e) => {
+                  hasUserEdited.current = true;
+                  setSettings({ ...settings, drawTimezone: e.target.value });
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Countdown Title */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
+                Título do Bloco de Contagem
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Faltam Poucos Dias para o Sorteio Oficial!"
+                value={settings.countdownTitle || ''}
+                onChange={(e) => {
+                  hasUserEdited.current = true;
+                  setSettings({ ...settings, countdownTitle: e.target.value });
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Custom Message / Instructions */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
+                Mensagem Adicional / Aviso de Transmissão
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Garanta já seu bilhete antes que as inscrições encerrem!"
+                value={settings.countdownMessage || ''}
+                onChange={(e) => {
+                  hasUserEdited.current = true;
+                  setSettings({ ...settings, countdownMessage: e.target.value });
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
+            <button
+              type="submit"
+              disabled={loadingAction}
+              className="py-3 px-8 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-sm shadow-xl flex items-center gap-2 cursor-pointer transition-all"
+            >
+              <Save className="w-4 h-4" />
+              {loadingAction ? 'Gravando na Base de Dados...' : 'Gravar Calendário & Relógio na Base de Dados'}
+            </button>
+          </div>
+        </form>
       )}
 
       {/* ================= TAB 4: REGRAS & VALIDAÇÃO ================= */}
