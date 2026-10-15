@@ -11,11 +11,15 @@ const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
 const DATA_DIR = path.join(__dirname, 'data');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'sorteio_db.json');
 
-// Ensure data directory exists
+// Ensure data and uploads directories exist
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 interface VerificationRecord {
@@ -281,8 +285,11 @@ async function generateTicketQR(ticketNumber: string, email: string, baseUrl: st
 
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: '20mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Static serving for uploaded files like logo
+  app.use('/uploads', express.static(UPLOADS_DIR));
 
   // CORS middleware to support iframe and cross-origin requests in preview environment
   app.use((req: Request, res: Response, next) => {
@@ -645,45 +652,114 @@ async function startServer() {
     });
   });
 
+  // POST /api/admin/upload-logo (Saves uploaded logo directly to disk as a static image)
+  app.post('/api/admin/upload-logo', (req: Request, res: Response) => {
+    try {
+      const { imageBase64 } = req.body;
+      if (!imageBase64 || typeof imageBase64 !== 'string') {
+        return res.status(400).json({ error: 'Nenhum dado de imagem recebido.' });
+      }
+
+      const matches = imageBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let buffer: Buffer;
+      let ext = 'png';
+
+      if (matches && matches.length === 3) {
+        const mime = matches[1];
+        if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
+        else if (mime.includes('webp')) ext = 'webp';
+        else if (mime.includes('svg')) ext = 'svg';
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(imageBase64, 'base64');
+      }
+
+      const fileName = `logo_${Date.now()}.${ext}`;
+      const filePath = path.join(UPLOADS_DIR, fileName);
+      fs.writeFileSync(filePath, buffer);
+
+      const fileUrl = `/uploads/${fileName}`;
+      if (!db.raffle.settings) {
+        db.raffle.settings = { ...defaultSettings };
+      }
+      db.raffle.settings.logoUrl = fileUrl;
+      saveDatabase();
+      broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+
+      return res.json({
+        success: true,
+        logoUrl: fileUrl,
+        message: 'Logo gravado e otimizado com sucesso!',
+      });
+    } catch (err: any) {
+      console.error('Error saving logo file:', err);
+      return res.status(500).json({ error: 'Erro ao gravar arquivo de logo: ' + err.message });
+    }
+  });
+
   // POST /api/admin/save-config (Configure EVERYTHING about the raffle)
   app.post('/api/admin/save-config', (req: Request, res: Response) => {
-    const { title, description, allowRegistrations, prizes, settings } = req.body;
+    try {
+      const { title, description, allowRegistrations, prizes, settings } = req.body;
 
-    if (title && typeof title === 'string') {
-      db.raffle.title = title.trim();
-    }
-    if (description !== undefined && typeof description === 'string') {
-      db.raffle.description = description.trim();
-    }
-    if (typeof allowRegistrations === 'boolean') {
-      db.raffle.allowRegistrations = allowRegistrations;
-    }
-    if (Array.isArray(prizes)) {
-      db.raffle.prizes = prizes.map((p, idx) => ({
-        ...p,
-        rank: typeof p.rank === 'number' ? p.rank : idx + 1,
-        quantity: typeof p.quantity === 'number' && p.quantity > 0 ? Number(p.quantity) : 1,
-      }));
-    }
-    if (settings && typeof settings === 'object') {
-      db.raffle.settings = {
-        ...defaultSettings,
-        ...(db.raffle.settings || {}),
-        ...settings,
-      };
-    }
+      if (title && typeof title === 'string') {
+        db.raffle.title = title.trim();
+      }
+      if (description !== undefined && typeof description === 'string') {
+        db.raffle.description = description.trim();
+      }
+      if (typeof allowRegistrations === 'boolean') {
+        db.raffle.allowRegistrations = allowRegistrations;
+      }
+      if (Array.isArray(prizes)) {
+        db.raffle.prizes = prizes.map((p, idx) => ({
+          ...p,
+          rank: typeof p.rank === 'number' ? p.rank : idx + 1,
+          quantity: typeof p.quantity === 'number' && p.quantity > 0 ? Number(p.quantity) : 1,
+        }));
+      }
+      if (settings && typeof settings === 'object') {
+        const mergedSettings = {
+          ...defaultSettings,
+          ...(db.raffle.settings || {}),
+          ...settings,
+        };
 
-    const saved = saveDatabase();
-    if (!saved) {
-      return res.status(500).json({ error: 'Falha ao salvar alterações no disco da base de dados.' });
-    }
-    broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+        // If logoUrl is a data URL, convert it to a local file URL automatically to avoid bloated DB file!
+        if (mergedSettings.logoUrl && typeof mergedSettings.logoUrl === 'string' && mergedSettings.logoUrl.startsWith('data:image/')) {
+          try {
+            const matches = mergedSettings.logoUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const mime = matches[1];
+              const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+              const fileName = `logo_${Date.now()}.${ext}`;
+              const filePath = path.join(UPLOADS_DIR, fileName);
+              fs.writeFileSync(filePath, Buffer.from(matches[2], 'base64'));
+              mergedSettings.logoUrl = `/uploads/${fileName}`;
+            }
+          } catch (logoErr) {
+            console.warn('Could not save logo to uploads file, keeping data url:', logoErr);
+          }
+        }
 
-    res.json({
-      success: true,
-      message: 'Configurações do aplicativo gravadas com sucesso na base de dados!',
-      raffle: db.raffle,
-    });
+        db.raffle.settings = mergedSettings;
+      }
+
+      const saved = saveDatabase();
+      if (!saved) {
+        return res.status(500).json({ error: 'Falha ao salvar alterações no disco da base de dados.' });
+      }
+      broadcastSSE('STATE_UPDATED', { raffle: db.raffle });
+
+      return res.json({
+        success: true,
+        message: 'Configurações do aplicativo gravadas com sucesso na base de dados!',
+        raffle: db.raffle,
+      });
+    } catch (err: any) {
+      console.error('Error in save-config:', err);
+      return res.status(500).json({ error: 'Erro ao processar gravação: ' + (err.message || 'Desconhecido') });
+    }
   });
 
   // POST /api/admin/start-draw-animation

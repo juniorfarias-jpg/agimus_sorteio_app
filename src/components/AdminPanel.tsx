@@ -106,16 +106,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      setActionError('A imagem do logo deve ter no máximo 8MB.');
+
+    if (file.size > 15 * 1024 * 1024) {
+      setActionError('A imagem do logo deve ter no máximo 15MB.');
       return;
     }
+
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = reader.result as string;
-      hasUserEdited.current = true;
-      setSettings((prev) => ({ ...prev, logoUrl: base64 }));
-      setActionSuccess('Logo carregado com sucesso! Clique em "Gravar Alterações" para salvar na base de dados.');
+      const rawBase64 = reader.result as string;
+
+      // Client-side canvas compression: scale to max 480px maintaining aspect ratio
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 480;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/png', 0.9);
+          hasUserEdited.current = true;
+          setSettings((prev) => ({ ...prev, logoUrl: compressed }));
+
+          // Auto-upload compressed image to server uploads directory
+          fetch('/api/admin/upload-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: compressed }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.logoUrl) {
+                setSettings((prev) => ({ ...prev, logoUrl: data.logoUrl }));
+                onRefreshState();
+                setActionSuccess('✅ Logo carregado, otimizado e gravado na base de dados com sucesso!');
+              }
+            })
+            .catch(() => {
+              setActionSuccess('Logo pronto! Clique em "Salvar Alterações" para gravar permanentemente.');
+            });
+        }
+      };
+      img.src = rawBase64;
     };
     reader.readAsDataURL(file);
   };
@@ -237,7 +283,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Save full configuration
   const handleSaveFullConfig = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setLoadingAction(true);
     setActionSuccess(null);
     setActionError(null);
@@ -254,16 +300,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (res.ok) {
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        if (!res.ok) {
+          throw new Error(`Servidor respondeu com status ${res.status}: ${res.statusText || 'Erro inesperado'}`);
+        }
+      }
+
+      if (res.ok && data.success) {
         hasUserEdited.current = false;
-        setActionSuccess('✅ Todas as alterações (prêmios, quantidades, calendário, relógio, cores) foram gravadas com sucesso na base de dados!');
+        if (data.raffle?.settings?.logoUrl) {
+          setSettings((prev) => ({ ...prev, logoUrl: data.raffle.settings.logoUrl }));
+        }
+        setActionSuccess('✅ Todas as alterações (logo, tema de cores, prêmios, calendário, relógio) foram gravadas com sucesso na base de dados!');
         onRefreshState();
       } else {
-        setActionError('❌ ' + (data.error || 'Erro ao salvar configurações.'));
+        setActionError('❌ ' + (data.error || 'Erro ao salvar alterações no servidor.'));
       }
     } catch (err: any) {
-      setActionError('Falha ao comunicar com o servidor: ' + err.message);
+      setActionError('Falha ao comunicar com o servidor: ' + (err.message || 'Erro de rede'));
     } finally {
       setLoadingAction(false);
     }
@@ -892,7 +950,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* ================= TAB: LOGO & CORES DE FUNDO & ACESSO RESTRITO ================= */}
       {adminTab === 'theme' && (
-        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-8 animate-fade-in">
+        <form onSubmit={handleSaveFullConfig} noValidate className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-8 animate-fade-in">
           <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-1.5">
@@ -905,11 +963,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </p>
             </div>
             <button
-              type="submit"
+              type="button"
+              onClick={() => handleSaveFullConfig()}
               disabled={loadingAction}
-              className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-black text-xs shadow-md transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+              className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-black text-xs shadow-md transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto flex items-center gap-2"
             >
-              Salvar Alterações
+              <Save className="w-4 h-4" />
+              {loadingAction ? 'Gravando...' : 'Salvar Alterações'}
             </button>
           </div>
 
@@ -967,14 +1027,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   Ou Informe o Link / URL da Imagem do Logo:
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={settings.logoUrl || ''}
-                  onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                  placeholder="https://sua-empresa.com/logo.png"
+                  onChange={(e) => {
+                    hasUserEdited.current = true;
+                    setSettings({ ...settings, logoUrl: e.target.value });
+                  }}
+                  placeholder="https://sua-empresa.com/logo.png ou /uploads/logo.png"
                   className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-amber-500 font-mono"
                 />
                 <p className="text-[10px] text-slate-400 mt-1.5">
-                  Link direto para a imagem do seu logo na internet.
+                  Link direto para a imagem do seu logo na internet ou caminho carregado.
                 </p>
               </div>
 
@@ -1297,11 +1360,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               As alterações de cores e logo são salvas diretamente e sincronizam em tempo real.
             </span>
             <button
-              type="submit"
+              type="button"
+              onClick={() => handleSaveFullConfig()}
               disabled={loadingAction}
-              className="py-3 px-8 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
+              className="py-3 px-8 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-amber-500/20 transition-all cursor-pointer flex items-center gap-2"
             >
-              Salvar Todas as Configurações
+              <Save className="w-4 h-4" />
+              {loadingAction ? 'Gravando na Base de Dados...' : 'Salvar Todas as Configurações'}
             </button>
           </div>
         </form>
@@ -1309,7 +1374,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* ================= TAB: FORMULÁRIO DE INSCRIÇÃO & CAMPOS EM VERDE ================= */}
       {adminTab === 'form' && (
-        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+        <form onSubmit={handleSaveFullConfig} noValidate className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
           <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-1.5">
@@ -1663,9 +1728,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   Esta é a URL que será embutida no QR Code impresso no papel. Deixe em branco para usar o endereço do servidor detectado automaticamente.
                 </p>
                 <input
-                  type="url"
+                  type="text"
                   value={settings.customPublicUrl || ''}
-                  onChange={(e) => setSettings({ ...settings, customPublicUrl: e.target.value })}
+                  onChange={(e) => {
+                    hasUserEdited.current = true;
+                    setSettings({ ...settings, customPublicUrl: e.target.value });
+                  }}
                   placeholder={serverPublicUrl || 'https://...'}
                   className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-xs outline-none font-mono focus:border-indigo-500"
                 />
@@ -1770,7 +1838,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* ================= TAB 2: DADOS & TEXTOS GERAIS ================= */}
       {adminTab === 'settings' && (
-        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <form onSubmit={handleSaveFullConfig} noValidate className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="border-b border-slate-800 pb-4">
             <h2 className="text-lg font-bold text-white">Identidade & Conteúdo do Sorteio</h2>
             <p className="text-xs text-slate-400">Configure os textos exibidos na tela principal e nos bilhetes</p>
@@ -2103,7 +2171,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* ================= TAB: CALENDÁRIO & RELÓGIO DE TEMPO ================= */}
       {adminTab === 'schedule' && (
-        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <form onSubmit={handleSaveFullConfig} noValidate className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -2331,7 +2399,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* ================= TAB 4: REGRAS & VALIDAÇÃO ================= */}
       {adminTab === 'rules' && (
-        <form onSubmit={handleSaveFullConfig} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <form onSubmit={handleSaveFullConfig} noValidate className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="border-b border-slate-800 pb-4">
             <h2 className="text-lg font-bold text-white">Regras de Inscrição & Validação</h2>
             <p className="text-xs text-slate-400">Ajuste os parâmetros de validação e proteção do sorteio</p>
