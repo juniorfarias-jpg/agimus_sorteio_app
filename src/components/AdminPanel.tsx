@@ -112,16 +112,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+
     const reader = new FileReader();
     reader.onload = () => {
       const rawBase64 = reader.result as string;
 
-      // Client-side canvas compression: scale to max 480px maintaining aspect ratio
+      const finishUpload = (finalDataUrl: string) => {
+        hasUserEdited.current = true;
+        setSettings((prev) => ({ ...prev, logoUrl: finalDataUrl }));
+
+        fetch('/api/admin/upload-logo', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: finalDataUrl }),
+        })
+          .then(async (r) => {
+            if (!r.ok) {
+              const alt = await fetch('/api/upload-logo', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageBase64: finalDataUrl }),
+              });
+              return alt.json();
+            }
+            return r.json();
+          })
+          .then((data) => {
+            if (data && data.logoUrl) {
+              setSettings((prev) => ({ ...prev, logoUrl: data.logoUrl }));
+              onRefreshState();
+              setActionSuccess('✅ Logo carregado, otimizado e gravado na base de dados com sucesso!');
+            }
+          })
+          .catch(() => {
+            setActionSuccess('Logo pronto! Clique em "Salvar Alterações" para gravar permanentemente.');
+          });
+      };
+
+      if (isSvg) {
+        finishUpload(rawBase64);
+        return;
+      }
+
+      // Client-side canvas compression for raster images (PNG, JPG, WebP)
       const img = new Image();
       img.onload = () => {
         const maxDim = 480;
-        let w = img.width;
-        let h = img.height;
+        let w = img.width || 480;
+        let h = img.height || 480;
         if (w > maxDim || h > maxDim) {
           if (w > h) {
             h = Math.round((h * maxDim) / w);
@@ -139,37 +180,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         if (ctx) {
           ctx.drawImage(img, 0, 0, w, h);
           const compressed = canvas.toDataURL('image/png', 0.9);
-          hasUserEdited.current = true;
-          setSettings((prev) => ({ ...prev, logoUrl: compressed }));
-
-          // Auto-upload compressed image to server uploads directory
-          fetch('/api/admin/upload-logo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: compressed }),
-          })
-            .then(async (r) => {
-              if (!r.ok) {
-                const alt = await fetch('/api/upload-logo', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ imageBase64: compressed }),
-                });
-                return alt.json();
-              }
-              return r.json();
-            })
-            .then((data) => {
-              if (data && data.logoUrl) {
-                setSettings((prev) => ({ ...prev, logoUrl: data.logoUrl }));
-                onRefreshState();
-                setActionSuccess('✅ Logo carregado, otimizado e gravado na base de dados com sucesso!');
-              }
-            })
-            .catch(() => {
-              setActionSuccess('Logo pronto! Clique em "Salvar Alterações" para gravar permanentemente.');
-            });
+          finishUpload(compressed);
+        } else {
+          finishUpload(rawBase64);
         }
+      };
+      img.onerror = () => {
+        finishUpload(rawBase64);
       };
       img.src = rawBase64;
     };
@@ -326,39 +343,83 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
       }
 
-      // Try main save endpoint, with retry on alternate endpoint if needed
-      let res = await fetch('/api/admin/save-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          prizes,
-          settings: currentSettings,
-        }),
-      });
-
-      if (!res.ok && (res.status === 404 || res.status === 502)) {
-        // Fallback retry with alternate path
-        res = await fetch('/api/save-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      // Save directly to localStorage as resilient client-side backup
+      try {
+        localStorage.setItem(
+          'sorteio_offline_backup',
+          JSON.stringify({
             title,
             description,
             prizes,
             settings: currentSettings,
-          }),
-        });
+            savedAt: new Date().toISOString(),
+          })
+        );
+      } catch (lsErr) {
+        console.warn('LocalStorage backup notice:', lsErr);
       }
 
-      const text = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(text);
-      } catch {
-        if (!res.ok) {
-          throw new Error(`Servidor respondeu com código ${res.status}: ${res.statusText || 'Não foi possível gravar'}`);
+      const savePayload = JSON.stringify({
+        title,
+        description,
+        prizes,
+        settings: currentSettings,
+      });
+
+      const endpoints = [
+        '/api/admin/save-config',
+        '/api/save-config',
+        `${window.location.origin}/api/admin/save-config`,
+        `${window.location.origin}/api/save-config`,
+      ];
+
+      let res: Response | null = null;
+      let text = '';
+      let data: any = null;
+
+      for (const ep of endpoints) {
+        try {
+          const attempt = await fetch(ep, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: savePayload,
+          });
+
+          const attemptText = await attempt.text();
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(attemptText);
+          } catch {
+            parsed = null;
+          }
+
+          if (attempt.ok && parsed && parsed.success) {
+            res = attempt;
+            text = attemptText;
+            data = parsed;
+            break;
+          } else if (!res) {
+            res = attempt;
+            text = attemptText;
+            data = parsed;
+          }
+        } catch (netErr) {
+          console.warn(`Attempt failed on ${ep}:`, netErr);
+        }
+      }
+
+      if (!res) {
+        throw new Error('Não foi possível conectar com os serviços da base de dados.');
+      }
+
+      if (!data) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          if (!res.ok) {
+            throw new Error(`Servidor respondeu com código ${res.status}: ${res.statusText || 'Erro inesperado'}`);
+          }
         }
       }
 

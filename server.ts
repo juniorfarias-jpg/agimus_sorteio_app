@@ -292,9 +292,15 @@ async function startServer() {
   // Static serving for uploaded files like logo
   app.use('/uploads', express.static(UPLOADS_DIR));
 
-  // CORS middleware to support iframe and cross-origin requests in preview environment
+  // CORS middleware to support iframe, credentials and cross-origin requests in preview environment
   app.use((req: Request, res: Response, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     if (req.method === 'OPTIONS') {
