@@ -771,8 +771,8 @@ async function startServer() {
     }
   };
 
-  app.post(['/api/admin/save-config', '/api/admin/save-config/', '/api/save-config', '/api/save-config/'], handleSaveConfig);
-  app.put(['/api/admin/save-config', '/api/admin/save-config/', '/api/save-config', '/api/save-config/'], handleSaveConfig);
+  app.post(['/api/admin/save-config', '/api/admin/save-config/', '/api/save-config', '/api/save-config/', '/api/state', '/api/state/'], handleSaveConfig);
+  app.put(['/api/admin/save-config', '/api/admin/save-config/', '/api/save-config', '/api/save-config/', '/api/state', '/api/state/'], handleSaveConfig);
   app.get(['/api/admin/save-config', '/api/admin/save-config/'], (_req: Request, res: Response) => {
     res.json({ status: 'ok', raffle: db.raffle });
   });
@@ -951,8 +951,19 @@ async function startServer() {
   const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
 
   if (isProd && hasDist) {
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      },
+    }));
     app.get('*', (_req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {

@@ -369,8 +369,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const endpoints = [
         '/api/admin/save-config',
         '/api/save-config',
+        '/api/state',
         `${window.location.origin}/api/admin/save-config`,
         `${window.location.origin}/api/save-config`,
+        `${window.location.origin}/api/state`,
       ];
 
       let res: Response | null = null;
@@ -752,14 +754,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {actionError && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between shadow-lg">
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span className="font-medium">{actionError}</span>
           </div>
-          <button onClick={() => setActionError(null)} className="text-rose-400 hover:text-white font-bold ml-3">
-            ✕
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="py-1 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              Recarregar Página (F5)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              className="text-rose-400 hover:text-white font-bold px-1"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
