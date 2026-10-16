@@ -73,7 +73,36 @@ const fallbackRaffle: Raffle = {
 export default function App() {
   // Default to registration form for all participants
   const [activeTab, setActiveTab] = useState<'live' | 'register' | 'lookup' | 'admin' | 'stage' | 'portal'>('register');
-  const [raffle, setRaffle] = useState<Raffle>(fallbackRaffle);
+  const [raffle, setRaffle] = useState<Raffle>(() => {
+    try {
+      const saved = localStorage.getItem('sorteio_saved_config');
+      const customLogo = localStorage.getItem('sorteio_custom_logo');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...fallbackRaffle,
+          ...parsed,
+          settings: {
+            ...fallbackRaffle.settings,
+            ...(parsed.settings || {}),
+            logoUrl: customLogo || parsed.settings?.logoUrl || fallbackRaffle.settings.logoUrl,
+          },
+        };
+      }
+      if (customLogo) {
+        return {
+          ...fallbackRaffle,
+          settings: {
+            ...fallbackRaffle.settings,
+            logoUrl: customLogo,
+          },
+        };
+      }
+    } catch (e) {
+      console.warn('LocalStorage initial state load notice:', e);
+    }
+    return fallbackRaffle;
+  });
   const [participants, setParticipants] = useState<
     Array<{ id: string; ticketNumber: string; name: string; email?: string; emailMasked: string; phone?: string; city: string; registeredAt: string }>
   >([]);
@@ -111,10 +140,32 @@ export default function App() {
         const data = await res.json();
         if (data.raffle) {
           setRaffle((prev) => {
-            if (JSON.stringify(prev) === JSON.stringify(data.raffle)) {
+            const saved = localStorage.getItem('sorteio_saved_config');
+            const customLogo = localStorage.getItem('sorteio_custom_logo');
+            let merged = { ...data.raffle };
+            if (saved) {
+              try {
+                const parsed = JSON.parse(saved);
+                merged = {
+                  ...merged,
+                  ...parsed,
+                  settings: {
+                    ...merged.settings,
+                    ...(parsed.settings || {}),
+                  },
+                };
+              } catch {}
+            }
+            if (customLogo) {
+              merged.settings = {
+                ...(merged.settings || {}),
+                logoUrl: customLogo,
+              };
+            }
+            if (JSON.stringify(prev) === JSON.stringify(merged)) {
               return prev;
             }
-            return data.raffle;
+            return merged;
           });
         }
         if (Array.isArray(data.participants)) {

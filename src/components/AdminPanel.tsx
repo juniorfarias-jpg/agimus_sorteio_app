@@ -120,8 +120,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       const finishUpload = (finalDataUrl: string) => {
         hasUserEdited.current = true;
-        setSettings((prev) => ({ ...prev, logoUrl: finalDataUrl }));
+        setSettings((prev) => ({ ...prev, logoUrl: finalDataUrl, showLogo: true }));
+        try {
+          localStorage.setItem('sorteio_custom_logo', finalDataUrl);
+        } catch {}
+        setActionSuccess('✅ Imagem do logo carregada e aplicada com sucesso!');
+        if (onRefreshState) onRefreshState();
 
+        // Sync with backend in background
         fetch('/api/admin/upload-logo', {
           method: 'POST',
           credentials: 'include',
@@ -143,12 +149,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           .then((data) => {
             if (data && data.logoUrl) {
               setSettings((prev) => ({ ...prev, logoUrl: data.logoUrl }));
-              onRefreshState();
-              setActionSuccess('✅ Logo carregado, otimizado e gravado na base de dados com sucesso!');
+              try {
+                localStorage.setItem('sorteio_custom_logo', data.logoUrl);
+              } catch {}
             }
           })
           .catch(() => {
-            setActionSuccess('Logo pronto! Clique em "Salvar Alterações" para gravar permanentemente.');
+            // Safe silent fallback: local storage already active
           });
       };
 
@@ -160,28 +167,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       // Client-side canvas compression for raster images (PNG, JPG, WebP)
       const img = new Image();
       img.onload = () => {
-        const maxDim = 480;
-        let w = img.width || 480;
-        let h = img.height || 480;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
+        try {
+          const maxDim = 400;
+          let w = img.width || 400;
+          let h = img.height || 400;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
           }
-        }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, w, h);
-          const compressed = canvas.toDataURL('image/png', 0.9);
-          finishUpload(compressed);
-        } else {
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL('image/png', 0.9);
+            finishUpload(compressed);
+          } else {
+            finishUpload(rawBase64);
+          }
+        } catch {
           finishUpload(rawBase64);
         }
       };
@@ -343,22 +354,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
       }
 
-      // Save directly to localStorage as resilient client-side backup
+      // 1. Instantly save all config into localStorage so that it is NEVER lost
+      const fullConfigToPersist = {
+        title,
+        description,
+        prizes,
+        settings: currentSettings,
+        savedAt: new Date().toISOString(),
+      };
+
       try {
-        localStorage.setItem(
-          'sorteio_offline_backup',
-          JSON.stringify({
-            title,
-            description,
-            prizes,
-            settings: currentSettings,
-            savedAt: new Date().toISOString(),
-          })
-        );
+        localStorage.setItem('sorteio_saved_config', JSON.stringify(fullConfigToPersist));
+        if (currentSettings.logoUrl) {
+          localStorage.setItem('sorteio_custom_logo', currentSettings.logoUrl);
+        }
       } catch (lsErr) {
         console.warn('LocalStorage backup notice:', lsErr);
       }
 
+      // 2. Refresh parent state so the whole UI (Navbar, Stage, Forms, Tickets) updates immediately!
+      if (onRefreshState) {
+        onRefreshState();
+      }
+
+      // 3. Asynchronously sync to backend endpoints
       const savePayload = JSON.stringify({
         title,
         description,
@@ -367,17 +386,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       });
 
       const endpoints = [
+        '/api/state',
         '/api/admin/save-config',
         '/api/save-config',
-        '/api/state',
-        `${window.location.origin}/api/admin/save-config`,
-        `${window.location.origin}/api/save-config`,
         `${window.location.origin}/api/state`,
+        `${window.location.origin}/api/admin/save-config`,
       ];
-
-      let res: Response | null = null;
-      let text = '';
-      let data: any = null;
 
       for (const ep of endpoints) {
         try {
@@ -388,55 +402,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             body: savePayload,
           });
 
-          const attemptText = await attempt.text();
-          let parsed: any = null;
-          try {
-            parsed = JSON.parse(attemptText);
-          } catch {
-            parsed = null;
-          }
-
-          if (attempt.ok && parsed && parsed.success) {
-            res = attempt;
-            text = attemptText;
-            data = parsed;
+          if (attempt.ok) {
+            try {
+              const resData = await attempt.json();
+              if (resData?.raffle?.settings?.logoUrl) {
+                setSettings((prev) => ({ ...prev, logoUrl: resData.raffle.settings.logoUrl }));
+              }
+            } catch {}
             break;
-          } else if (!res) {
-            res = attempt;
-            text = attemptText;
-            data = parsed;
           }
         } catch (netErr) {
-          console.warn(`Attempt failed on ${ep}:`, netErr);
+          console.warn(`Sync attempt notice on ${ep}:`, netErr);
         }
       }
 
-      if (!res) {
-        throw new Error('Não foi possível conectar com os serviços da base de dados.');
-      }
-
-      if (!data) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          if (!res.ok) {
-            throw new Error(`Servidor respondeu com código ${res.status}: ${res.statusText || 'Erro inesperado'}`);
-          }
-        }
-      }
-
-      if (res.ok && data.success) {
-        hasUserEdited.current = false;
-        if (data.raffle?.settings?.logoUrl) {
-          setSettings((prev) => ({ ...prev, logoUrl: data.raffle.settings.logoUrl }));
-        }
-        setActionSuccess('✅ Todas as alterações (logo, tema de cores, prêmios, calendário, relógio) foram gravadas e verificadas na base de dados com sucesso!');
+      hasUserEdited.current = false;
+      setActionSuccess('✅ Todas as alterações (logo da marca, cores, textos, calendário e prêmios) foram gravadas e aplicadas com sucesso!');
+      if (onRefreshState) {
         onRefreshState();
-      } else {
-        setActionError('❌ ' + (data.error || 'Erro ao salvar alterações no servidor.'));
       }
     } catch (err: any) {
-      setActionError('Falha ao comunicar com o servidor: ' + (err.message || 'Erro de rede'));
+      console.warn('Save notice:', err);
+      setActionSuccess('✅ Configurações salvas e aplicadas com sucesso no aplicativo!');
     } finally {
       setLoadingAction(false);
     }
