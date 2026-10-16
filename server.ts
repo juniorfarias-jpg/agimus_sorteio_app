@@ -654,7 +654,7 @@ async function startServer() {
   });
 
   // POST /api/admin/upload-logo (Saves uploaded logo directly to disk as a static image)
-  app.post(['/api/admin/upload-logo', '/api/admin/upload-logo/'], (req: Request, res: Response) => {
+  const handleUploadLogo = (req: Request, res: Response) => {
     try {
       const { imageBase64 } = req.body;
       if (!imageBase64 || typeof imageBase64 !== 'string') {
@@ -696,10 +696,12 @@ async function startServer() {
       console.error('Error saving logo file:', err);
       return res.status(500).json({ error: 'Erro ao gravar arquivo de logo: ' + err.message });
     }
-  });
+  };
+
+  app.post(['/api/admin/upload-logo', '/api/admin/upload-logo/', '/api/upload-logo', '/api/upload-logo/'], handleUploadLogo);
 
   // POST /api/admin/save-config (Configure EVERYTHING about the raffle)
-  app.post(['/api/admin/save-config', '/api/admin/save-config/'], (req: Request, res: Response) => {
+  const handleSaveConfig = (req: Request, res: Response) => {
     try {
       const { title, description, allowRegistrations, prizes, settings } = req.body;
 
@@ -761,6 +763,12 @@ async function startServer() {
       console.error('Error in save-config:', err);
       return res.status(500).json({ error: 'Erro ao processar gravação: ' + (err.message || 'Desconhecido') });
     }
+  };
+
+  app.post(['/api/admin/save-config', '/api/admin/save-config/', '/api/save-config', '/api/save-config/'], handleSaveConfig);
+  app.put(['/api/admin/save-config', '/api/admin/save-config/', '/api/save-config', '/api/save-config/'], handleSaveConfig);
+  app.get(['/api/admin/save-config', '/api/admin/save-config/'], (_req: Request, res: Response) => {
+    res.json({ status: 'ok', raffle: db.raffle });
   });
 
   // POST /api/admin/start-draw-animation
@@ -926,20 +934,27 @@ async function startServer() {
     });
   });
 
+  // 404 handler for unknown API routes (always return JSON, never HTML)
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({ error: `Rota da API não encontrada: ${req.method} ${req.url}` });
+  });
+
   // Mount Vite or static serving
   const isProd = process.env.NODE_ENV === 'production';
-  if (!isProd) {
+  const distPath = path.join(__dirname, 'dist');
+  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+
+  if (isProd && hasDist) {
+    app.use(express.static(distPath));
+    app.get('*', (_req: Request, res: Response) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(PORT, '0.0.0.0', () => {

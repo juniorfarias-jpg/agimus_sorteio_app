@@ -1,8 +1,8 @@
 {
   "raffle": {
     "id": "raffle-2026-01",
-    "title": "Sorteio Oficial 2026 - Edição Especial",
-    "description": "Sorteio oficial auditado e transmitido ao vivo com prêmios exclusivos",
+    "title": "Sorteio Oficial 2026",
+    "description": "Plataforma oficial com validação e sorteio em tempo real",
     "prizes": [
       {
         "id": "prize-1",
@@ -76,10 +76,10 @@
       "showCheckTicketLink": true,
       "checkTicketText": "Consultar meu bilhete",
       "customPublicUrl": "",
-      "logoUrl": "/uploads/logo_test.png",
-      "logoText": "Sorteio Oficial",
+      "logoUrl": "/uploads/logo_1792145558433.png",
+      "logoText": "Sorteio",
       "showLogo": true,
-      "themePreset": "midnight-purple",
+      "themePreset": "dark-slate",
       "themeBgColorPrimary": "#0f051d",
       "themeBgColorSecondary": "#1e0b36",
       "themeBgStyle": "linear-to-b",

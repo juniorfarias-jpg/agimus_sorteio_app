@@ -148,9 +148,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageBase64: compressed }),
           })
-            .then((r) => r.json())
+            .then(async (r) => {
+              if (!r.ok) {
+                const alt = await fetch('/api/upload-logo', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ imageBase64: compressed }),
+                });
+                return alt.json();
+              }
+              return r.json();
+            })
             .then((data) => {
-              if (data.logoUrl) {
+              if (data && data.logoUrl) {
                 setSettings((prev) => ({ ...prev, logoUrl: data.logoUrl }));
                 onRefreshState();
                 setActionSuccess('✅ Logo carregado, otimizado e gravado na base de dados com sucesso!');
@@ -316,7 +326,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
       }
 
-      // Try main save endpoint, with retry on trailing slash if needed
+      // Try main save endpoint, with retry on alternate endpoint if needed
       let res = await fetch('/api/admin/save-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -328,9 +338,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }),
       });
 
-      if (res.status === 404) {
-        // Fallback retry
-        res = await fetch('./api/admin/save-config', {
+      if (!res.ok && (res.status === 404 || res.status === 502)) {
+        // Fallback retry with alternate path
+        res = await fetch('/api/save-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
