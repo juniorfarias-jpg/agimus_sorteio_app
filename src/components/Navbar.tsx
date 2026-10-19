@@ -108,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               logoUrl={logoUrl}
               logoText={logoText}
               size="md"
-              subtitle={settings?.organizerName || 'Sorteio Oficial com Validação'}
+              subtitle={raffle?.title || settings?.organizerName || 'Sorteio Oficial com Validação'}
             />
           </div>
 

@@ -256,9 +256,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   );
 
-  // Sync state ONLY if user has not made local changes (prevent typing loss)
+  // Only sync state from incoming raffle on initial mount or when raffle ID changes
+  const lastRaffleId = useRef(raffle.id);
   useEffect(() => {
-    if (!hasUserEdited.current) {
+    if (raffle.id !== lastRaffleId.current) {
+      lastRaffleId.current = raffle.id;
       setTitle(raffle.title);
       setDescription(raffle.description);
       setPrizes(
@@ -271,7 +273,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         setSettings(raffle.settings);
       }
     }
-  }, [raffle]);
+  }, [raffle.id]);
 
   // Operational states
   const [search, setSearch] = useState('');
@@ -409,8 +411,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               const resData = await attempt.json();
               if (resData?.raffle) {
                 serverSaved = true;
-                if (resData.raffle.settings?.logoUrl) {
-                  setSettings((prev) => ({ ...prev, logoUrl: resData.raffle.settings.logoUrl }));
+                setTitle(resData.raffle.title);
+                setDescription(resData.raffle.description);
+                if (Array.isArray(resData.raffle.prizes)) {
+                  setPrizes(resData.raffle.prizes);
+                }
+                if (resData.raffle.settings) {
+                  setSettings(resData.raffle.settings);
                 }
               }
             } catch {}
@@ -433,7 +440,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
 
       if (onRefreshState) {
-        onRefreshState();
+        await onRefreshState();
       }
     } catch (err: any) {
       console.warn('Save notice:', err);
