@@ -2,7 +2,7 @@
   "raffle": {
     "id": "raffle-2026-01",
     "title": "Sorteio Oficial 2026",
-    "description": "Plataforma oficial com validação e sorteio em tempo real",
+    "description": "Plataforma auditada em tempo real com sincronização entre navegadores",
     "prizes": [
       {
         "id": "prize-1",
@@ -76,10 +76,10 @@
       "showCheckTicketLink": true,
       "checkTicketText": "Consultar meu bilhete",
       "customPublicUrl": "",
-      "logoUrl": "/uploads/logo_1792146749208.jpg",
-      "logoText": "Sorteio",
+      "logoUrl": "/uploads/logo_1792402157946.png",
+      "logoText": "Sorteio Oficial",
       "showLogo": true,
-      "themePreset": "dark-slate",
+      "themePreset": "midnight-purple",
       "themeBgColorPrimary": "#0f051d",
       "themeBgColorSecondary": "#1e0b36",
       "themeBgStyle": "linear-to-b",
@@ -91,8 +91,8 @@
       "showCardTag": true,
       "showRulesSection": true,
       "onlyAdminAccessAll": true,
-      "drawDate": "2026-06-20",
-      "drawTime": "21:00",
+      "drawDate": "2026-06-25",
+      "drawTime": "20:30",
       "drawDateTime": "2026-06-20T21:00",
       "drawTimezone": "Horário de Brasília (GMT-3)",
       "drawLocation": "Transmissão Ao Vivo Oficial YouTube",

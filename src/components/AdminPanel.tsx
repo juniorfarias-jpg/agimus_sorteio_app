@@ -393,6 +393,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         `${window.location.origin}/api/admin/save-config`,
       ];
 
+      let serverSaved = false;
+
       for (const ep of endpoints) {
         try {
           const attempt = await fetch(ep, {
@@ -405,8 +407,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           if (attempt.ok) {
             try {
               const resData = await attempt.json();
-              if (resData?.raffle?.settings?.logoUrl) {
-                setSettings((prev) => ({ ...prev, logoUrl: resData.raffle.settings.logoUrl }));
+              if (resData?.raffle) {
+                serverSaved = true;
+                if (resData.raffle.settings?.logoUrl) {
+                  setSettings((prev) => ({ ...prev, logoUrl: resData.raffle.settings.logoUrl }));
+                }
               }
             } catch {}
             break;
@@ -417,7 +422,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
 
       hasUserEdited.current = false;
-      setActionSuccess('✅ Todas as alterações (logo da marca, cores, textos, calendário e prêmios) foram gravadas e aplicadas com sucesso!');
+      if (serverSaved) {
+        try {
+          localStorage.removeItem('sorteio_saved_config');
+          localStorage.removeItem('sorteio_custom_logo');
+        } catch {}
+        setActionSuccess('✅ Gravado com sucesso na base de dados! Todas as alterações estão sincronizadas e ativas para todos os navegadores e telemóveis.');
+      } else {
+        setActionSuccess('✅ Alterações salvas no aplicativo!');
+      }
+
       if (onRefreshState) {
         onRefreshState();
       }

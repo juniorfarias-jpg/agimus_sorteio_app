@@ -10,7 +10,11 @@ import type { AppSettings, Participant, Prize, Raffle, Winner } from './src/type
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = 3000;
+const PORT = Number(
+  process.env.NGINX_PORT
+    ? (process.env.DEFAULT_APP_PORT || 3000)
+    : (process.env.PORT || process.env.DEFAULT_APP_PORT || 3000)
+) || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'sorteio_db.json');
